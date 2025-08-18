@@ -415,12 +415,14 @@ app.use("/api/*", shopify.validateAuthenticatedSession());
 
 app.get("/api/shop/all", async (_req, res) => {
   try {
-    const shopData = await shopify.api.rest.Shop.all({
+    // const shopData = await shopify.api.rest.Shop.all({
+      const shopData = await shopify.api.rest.Shop.current({
       session: res.locals.shopify.session,
     });
      shopId = shopData.data[0].id
      console.log("endpoint of shop data",shopData)
-    res.status(200).json({ success: true, data:shopData});
+    // res.status(200).json({ success: true, data:shopData});
+    res.status(200).json({ success: true, data: shopData });
    
   } catch (error) {
     console.error('Error fetching shopdata:', error);
