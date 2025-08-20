@@ -256,7 +256,7 @@ async function createShipment({
   // Fetch the stored client key from the API
  
 
-  const url = `https://myjeebly.jeebly.com/app/create_shipment_webhook?client_key=${clientKey}`;
+  const url = `https://demo.jeebly.com/app/create_shipment_webhook?client_key=${clientKey}`;
   const body = JSON.stringify({
     client_key:clientKey,
     delivery_type: getConfigure.service_type || "Next Day",
@@ -321,7 +321,7 @@ async function fetchDefaultAddress(extractedShopId) {
   const clientKey = extractedShopId;
   // Fetch the stored client key from the APi
 
-const url = `https://myjeebly.jeebly.com/app/get_address?client_key=${clientKey}`;
+const url = `https://demo.jeebly.com/app/get_address?client_key=${clientKey}`;
 
 console.log("Fetching default address from:", url);
 
@@ -355,7 +355,7 @@ return null; // Return null if no default address is found or if an error occurs
 async function fetchConfigureData(extractedShopId) {
   // Fetch the stored client key from the api
   const clientKey = extractedShopId;
-const url = `https://myjeebly.jeebly.com/app/get_configuration?client_key=${clientKey}`;
+const url = `https://demo.jeebly.com/app/get_configuration?client_key=${clientKey}`;
 
 console.log("Fetching configuration data from:", url);
 
