@@ -452,6 +452,77 @@ app.get("/api/orders/all", async (_req, res) => {
 });
 
 
+// tracking number update
+app.post("/api/update-tracking", async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const { orderId } = req.body;
+
+    const client = new shopify.clients.Graphql({ session });
+
+    // 1. Fetch fulfillmentId using orderId
+    const orderResp = await client.query({
+      data: {
+        query: `
+          query GetFulfillment($id: ID!) {
+            order(id: $id) {
+              fulfillments(first: 1) {
+                nodes { id }
+              }
+            }
+          }
+        `,
+        variables: { id: orderId }
+      }
+    });
+
+    const fulfillmentId =
+      orderResp.data?.order?.fulfillments?.nodes?.[0]?.id;
+
+    if (!fulfillmentId) {
+      return res.send({
+        success: false,
+        error: "No fulfillment found for this order",
+      });
+    }
+
+    // 2. Update tracking
+    const updateResp = await client.query({
+      data: {
+        query: `
+          mutation UpdateTracking(
+            $fulfillmentId: ID!,
+            $tracking: FulfillmentTrackingInput!
+          ) {
+            fulfillmentTrackingInfoUpdate(
+              fulfillmentId: $fulfillmentId,
+              trackingInfoInput: $tracking,
+              notifyCustomer: true
+            ) {
+              userErrors { message }
+              fulfillment { id status }
+            }
+          }
+        `,
+        variables: {
+          fulfillmentId,
+          tracking: {
+            number: "1Z001985YW99744790",
+            company: "Shekhar",
+            url: "https://wwwapps.ups.com/WebTracking"
+          }
+        }
+      }
+    });
+
+    res.send({ success: true, data: updateResp });
+
+  } catch (error) {
+    res.send({ success: false, error: error.message });
+  }
+});
+
+
 
 
 
