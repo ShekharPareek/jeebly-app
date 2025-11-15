@@ -458,53 +458,24 @@ app.get("/api/orders/all", async (_req, res) => {
 // Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
-    const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    if (!orderId) {
-      return res.json({ success: false, error: "Missing orderId" });
-    }
+    const session = res.locals.shopify.session;
 
-    const numericId = orderId.replace("gid://shopify/Order/", "");
+    const order = new shopify.rest.Order({ session });
+    order.id = orderId;
 
-    // 1. Fetch the order (to get fulfillment ID)
-    const order = await shopify.rest.Order.find({
-      session,
-      id: numericId,
+    const result = await order.update({
+      note: "Tracking updated by extension",
     });
 
-    const fulfillment = order.fulfillments?.[0];
-
-    if (!fulfillment) {
-      return res.json({
-        success: false,
-        error: "No fulfillment found for this order",
-      });
-    }
-
-    const fulfillmentId = fulfillment.id;
-
-    // 2. Update tracking on the fulfillment
-    const updated = await shopify.rest.Fulfillment.update({
-      session,
-      id: fulfillmentId,
-      fulfillment: {
-        tracking_number: "SH-1234567890",
-        tracking_company: "Shekhar Logistics",
-        tracking_url: "https://tracking.shekhar.com/SH-1234567890",
-      },
-    });
-
-    return res.json({
-      success: true,
-      data: updated,
-    });
-
+    res.json({ success: true, result });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
+
 
 
 
