@@ -464,86 +464,42 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Convert GID → numeric
+    // Convert Shopify GID → numeric ID
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // STEP 1 — Get Fulfillment Orders for this order
-    const client = new shopify.api.clients.Graphql({ session });
-
-    const foRes = await client.query({
-      data: {
-        query: `
-          query GetFO($id: ID!) {
-            order(id: $id) {
-              fulfillmentOrders(first: 1) {
-                nodes {
-                  id
-                }
-              }
-            }
-          }
-        `,
-        variables: { id: orderId },
-      },
+    // Step 1: Load order using REST API
+    const order = await shopify.api.rest.Order.find({
+      session,
+      id: numericOrderId,
     });
 
-    const fulfillmentOrderId =
-      foRes.data.order.fulfillmentOrders.nodes[0]?.id;
-
-    if (!fulfillmentOrderId) {
-      return res.json({
-        success: false,
-        error: "No fulfillment order found",
-      });
+    if (!order) {
+      return res.json({ success: false, error: "Order not found" });
     }
 
-    // STEP 2 — Create fulfillment + add tracking
-    const fulfillRes = await client.query({
-      data: {
-        query: `
-          mutation Fulfill($foId: ID!) {
-            fulfillmentCreateV2(
-              fulfillment: {
-                lineItemsByFulfillmentOrder: [
-                  {
-                    fulfillmentOrderId: $foId
-                  }
-                ]
-                trackingInfo: {
-                  number: "SH342229292"
-                  url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"
-                  company: "new Shekhar"
-                }
-              }
-            ) {
-              fulfillment {
-                id
-              }
-              userErrors { field message }
-            }
-          }
-        `,
-        variables: { foId: fulfillmentOrderId },
-      },
+    // Step 2: Create new Fulfillment with tracking
+    const fulfillment = new shopify.api.rest.order({
+      session: res.locals.shopify.session,
     });
 
-    const errors = fulfillRes.data.fulfillmentCreateV2.userErrors;
+    fulfillment.order_id = numericOrderId;
+    fulfillment.tracking_company = "Shekhar";
+    fulfillment.tracking_number = "SH342229292";
+    fulfillment.tracking_url = "https://tracking.com/track/SH342229292";
+    fulfillment.line_items = order.line_items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+    }));
 
-    if (errors.length > 0) {
-      return res.json({ success: false, error: errors[0].message });
-    }
+    const response = await fulfillment.save();
 
-    return res.json({
-      success: true,
-      message: "Tracking updated successfully!",
-      fulfillmentId: fulfillRes.data.fulfillmentCreateV2.fulfillment.id,
-    });
-
+    return res.json({ success: true, data: response });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
+
 
 
 
