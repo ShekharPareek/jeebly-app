@@ -455,50 +455,47 @@ app.get("/api/orders/all", async (_req, res) => {
 // tracking number update
 // tracking number update
 // UPDATE TRACKING USING REST API
+// Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
     if (!orderId) {
-      return res.json({ success: false, error: "Order ID missing" });
+      return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // 1️⃣ Get order details using REST
+    // 1. Get Order details using REST API
     const order = await shopify.rest.Order.find({
       session,
-      id: Number(orderId.replace("gid://shopify/Order/", "")),
+      id: orderId.replace("gid://shopify/Order/", ""), // convert GID → numeric
     });
 
-    if (!order.fulfillments || order.fulfillments.length === 0) {
+    const fulfillment = order.fulfillments?.[0];
+
+    if (!fulfillment) {
       return res.json({
         success: false,
-        error: "No fulfillment exists for this order",
+        error: "No fulfillment found for this order",
       });
     }
 
-    const fulfillmentId = order.fulfillments[0].id;
-
-    // 2️⃣ Update tracking using REST
-    const fulfillment = new shopify.rest.Fulfillment({ session });
-    fulfillment.id = fulfillmentId;
-    fulfillment.order_id = order.id;
-
-    fulfillment.tracking_company = "Shekhar Logistics";
-    fulfillment.tracking_number = "1Z001985YW99744790";
-    fulfillment.tracking_url = "https://wwwapps.ups.com/WebTracking";
-
-    await fulfillment.save({ update: true });
-
-    return res.json({
-      success: true,
-      message: "Tracking updated successfully",
-      fulfillmentId,
+    // 2. Update tracking
+    const updatedTracking = await shopify.rest.Fulfillment.updateTracking({
+      session,
+      fulfillment_id: fulfillment.id,
+      tracking_info: {
+        number: "1Z001985YW99744790",
+        company: "Shekhar Logistics",
+        url: "https://wwwapps.ups.com/WebTracking",
+      },
+      notify_customer: true,
     });
 
+    res.json({ success: true, data: updatedTracking });
   } catch (error) {
     console.error("Tracking update error:", error);
-    return res.json({ success: false, error: error.message });
+    res.json({ success: false, error: error.message });
   }
 });
 
