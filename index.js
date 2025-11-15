@@ -8,7 +8,7 @@ import { join } from "path";
 import { readFileSync } from "fs";
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-
+import { Order } from "@shopify/shopify-api/rest/admin/2024-07"; 
 dotenv.config();
 
 const PORT = parseInt(
@@ -468,46 +468,39 @@ app.post("/api/update-tracking", async (req, res) => {
     // Convert Shopify GID → numeric ID
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1. Fetch the order using REST
-    // const order = await shopify.rest.Order.find({
-    //   session,
-    //   id: numericOrderId,
-    // });
-
-    // const fulfillment = order.fulfillments?.[0];
-
-    // if (!fulfillment) {
-    //   return res.json({
-    //     success: false,
-    //     error: "No fulfillment found for this order",
-    //   });
-    // }
-
-    // const fulfillmentId = fulfillment.id;
-
-    // 2. Update tracking info (REST API)
-    const order = new shopify.api.rest.Order({
-      session: res.locals.shopify.session,
-      status: "any"
+    // 1️⃣ Load the order (REST requires loading first)
+    const order = await Order.find({
+      session,
+      id: numericOrderId,
+      fields: "fulfillments",
     });
-    order.id = numericOrderId;
-    order.fulfillments = [
-      {
-        "tracking_company": "new Shekhar",
-        "tracking_number": "SH342229292",
-        "tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"
-      }
-    ];
-    await order.save({
-      update: true,
+
+    if (!order.fulfillments || order.fulfillments.length === 0) {
+      return res.json({
+        success: false,
+        error: "No fulfillment exists for this order",
+      });
+    }
+
+    const fulfillmentId = order.fulfillments[0].id;
+
+    // 2️⃣ Update tracking
+    const updatedFulfillment = await shopify.rest.Fulfillment.update({
+      session,
+      fulfillment_id: fulfillmentId,
+      order_id: numericOrderId,
+      tracking_company: "new Shekhar",
+      tracking_number: "SH342229292",
+      tracking_url:
+        "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
     });
-    return res.json({ success: true, data: response });
+
+    return res.json({ success: true, data: updatedFulfillment });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
-
 
 
 
