@@ -464,34 +464,74 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Convert Shopify GID → numeric ID
-    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+    // Convert GID → ID number
+    const gid = orderId;
 
-    // Step 1: Load order using REST API
-    const order = await shopify.api.rest.Order.find({
-      session,
-      id: numericOrderId,
-    });
+    // 1️⃣ FETCH FULFILLMENT ID
+    const fulfillmentInfoQuery = `
+      query GetFulfillments($id: ID!) {
+        order(id: $id) {
+          fulfillments(first: 1) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    `;
 
-    if (!order) {
-      return res.json({ success: false, error: "Order not found" });
+    const fulfillmentResp = await shopify.api.clients.graphql.sessionClient(session).request(
+      fulfillmentInfoQuery,
+      { id: gid }
+    );
+
+    const fulfillmentId = fulfillmentResp.data.order.fulfillments.nodes[0]?.id;
+
+    if (!fulfillmentId) {
+      return res.json({ success: false, error: "No fulfillment found" });
     }
 
-    // Step 2: Create new Fulfillment with tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    // 2️⃣ UPDATE TRACKING
+    const updateTrackingMutation = `
+      mutation UpdateTracking($fulfillmentId: ID!, $trackingInfo: FulfillmentTrackingInput!) {
+        fulfillmentTrackingInfoUpdateV2(fulfillmentId: $fulfillmentId, trackingInfo: $trackingInfo) {
+          fulfillment {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
 
-    fulfillment.order_id = numericOrderId;
-    fulfillment.tracking_company = "Shekhar";
-    fulfillment.tracking_number = "SH342229292";
-    fulfillment.tracking_url = "https://tracking.com/track/SH342229292";
-    fulfillment.line_items = order.line_items.map((item) => ({
-      id: item.id,
-      quantity: item.quantity,
-    }));
+    const trackingData = {
+      fulfillmentId,
+      trackingInfo: {
+        number: "SH342229292",
+        url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
+        company: "new Shekhar"
+      }
+    };
 
-    const response = await fulfillment.save();
+    const trackingResp = await shopify.api.clients.graphql.sessionClient(session).request(
+      updateTrackingMutation,
+      trackingData
+    );
 
-    return res.json({ success: true, data: response });
+    const errors = trackingResp.data.fulfillmentTrackingInfoUpdateV2.userErrors;
+
+    if (errors.length > 0) {
+      return res.json({ success: false, error: errors[0].message });
+    }
+
+    return res.json({
+      success: true,
+      message: "Tracking updated successfully!",
+      data: trackingResp.data.fulfillmentTrackingInfoUpdateV2
+    });
+
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
