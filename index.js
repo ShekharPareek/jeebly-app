@@ -469,34 +469,35 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
     // 1. Fetch the order using REST
-    const order = await shopify.rest.Order.find({
-      session,
-      id: numericOrderId,
-    });
+    // const order = await shopify.rest.Order.find({
+    //   session,
+    //   id: numericOrderId,
+    // });
 
-    const fulfillment = order.fulfillments?.[0];
+    // const fulfillment = order.fulfillments?.[0];
 
-    if (!fulfillment) {
-      return res.json({
-        success: false,
-        error: "No fulfillment found for this order",
-      });
-    }
+    // if (!fulfillment) {
+    //   return res.json({
+    //     success: false,
+    //     error: "No fulfillment found for this order",
+    //   });
+    // }
 
-    const fulfillmentId = fulfillment.id;
+    // const fulfillmentId = fulfillment.id;
 
     // 2. Update tracking info (REST API)
-    const response = await shopify.rest.Fulfillment.updateTracking({
-      session,
-      fulfillment_id: fulfillmentId,
-      tracking_info: {
-        number: "1Z001985YW99744790",
-        company: "Shekhar",
-        url: "https://wwwapps.ups.com/WebTracking",
-      },
-      notify_customer: true,
+    const order = new shopify.rest.Order({session: session});
+    order.id = numericOrderId;
+    order.fulfillments = [
+      {
+        "tracking_company": "new Shekhar",
+        "tracking_number": "SH342229292",
+        "tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"
+      }
+    ];
+    await order.save({
+      update: true,
     });
-
     return res.json({ success: true, data: response });
   } catch (error) {
     console.error("Tracking update error:", error);
