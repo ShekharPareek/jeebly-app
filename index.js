@@ -464,63 +464,70 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Convert GID → ID number
-    const gid = orderId;
+    // Convert GID → numeric
+    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1️⃣ FETCH FULFILLMENT ID
-    const fulfillmentInfoQuery = `
-      query GetFulfillments($id: ID!) {
-        order(id: $id) {
-          fulfillments(first: 1) {
-            nodes {
-              id
+    // STEP 1 — Get Fulfillment Orders for this order
+    const client = new shopify.api.clients.Graphql({ session });
+
+    const foRes = await client.query({
+      data: {
+        query: `
+          query GetFO($id: ID!) {
+            order(id: $id) {
+              fulfillmentOrders(first: 1) {
+                nodes {
+                  id
+                }
+              }
             }
           }
-        }
-      }
-    `;
+        `,
+        variables: { id: orderId },
+      },
+    });
 
-    const fulfillmentResp = await shopify.api.clients.graphql.sessionClient(session).request(
-      fulfillmentInfoQuery,
-      { id: gid }
-    );
+    const fulfillmentOrderId =
+      foRes.data.order.fulfillmentOrders.nodes[0]?.id;
 
-    const fulfillmentId = fulfillmentResp.data.order.fulfillments.nodes[0]?.id;
-
-    if (!fulfillmentId) {
-      return res.json({ success: false, error: "No fulfillment found" });
+    if (!fulfillmentOrderId) {
+      return res.json({
+        success: false,
+        error: "No fulfillment order found",
+      });
     }
 
-    // 2️⃣ UPDATE TRACKING
-    const updateTrackingMutation = `
-      mutation UpdateTracking($fulfillmentId: ID!, $trackingInfo: FulfillmentTrackingInput!) {
-        fulfillmentTrackingInfoUpdateV2(fulfillmentId: $fulfillmentId, trackingInfo: $trackingInfo) {
-          fulfillment {
-            id
+    // STEP 2 — Create fulfillment + add tracking
+    const fulfillRes = await client.query({
+      data: {
+        query: `
+          mutation Fulfill($foId: ID!) {
+            fulfillmentCreateV2(
+              fulfillment: {
+                lineItemsByFulfillmentOrder: [
+                  {
+                    fulfillmentOrderId: $foId
+                  }
+                ]
+                trackingInfo: {
+                  number: "SH342229292"
+                  url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"
+                  company: "new Shekhar"
+                }
+              }
+            ) {
+              fulfillment {
+                id
+              }
+              userErrors { field message }
+            }
           }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
+        `,
+        variables: { foId: fulfillmentOrderId },
+      },
+    });
 
-    const trackingData = {
-      fulfillmentId,
-      trackingInfo: {
-        number: "SH342229292",
-        url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
-        company: "new Shekhar"
-      }
-    };
-
-    const trackingResp = await shopify.api.clients.graphql.sessionClient(session).request(
-      updateTrackingMutation,
-      trackingData
-    );
-
-    const errors = trackingResp.data.fulfillmentTrackingInfoUpdateV2.userErrors;
+    const errors = fulfillRes.data.fulfillmentCreateV2.userErrors;
 
     if (errors.length > 0) {
       return res.json({ success: false, error: errors[0].message });
@@ -529,7 +536,7 @@ app.post("/api/update-tracking", async (req, res) => {
     return res.json({
       success: true,
       message: "Tracking updated successfully!",
-      data: trackingResp.data.fulfillmentTrackingInfoUpdateV2
+      fulfillmentId: fulfillRes.data.fulfillmentCreateV2.fulfillment.id,
     });
 
   } catch (error) {
@@ -537,7 +544,6 @@ app.post("/api/update-tracking", async (req, res) => {
     res.json({ success: false, error: error.message });
   }
 });
-
 
 
 
