@@ -8,6 +8,7 @@ import { join } from "path";
 import { readFileSync } from "fs";
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import { Order, Fulfillment } from "@shopify/shopify-api/rest/admin/2024-07";
 
 dotenv.config();
 
@@ -461,41 +462,32 @@ app.post("/api/update-tracking", async (req, res) => {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    if (!orderId) {
-      return res.json({ success: false, error: "Missing orderId" });
-    }
-
-    // 1. Get Order details using REST API
-    const order = await shopify.rest.Order.find({
+    // Load order using REST API
+    const order = await Order.find({
       session,
-      id: orderId.replace("gid://shopify/Order/", ""), // convert GID → numeric
+      id: orderId,
     });
 
     const fulfillment = order.fulfillments?.[0];
-
     if (!fulfillment) {
-      return res.json({
-        success: false,
-        error: "No fulfillment found for this order",
-      });
+      return res.send({ success: false, error: "No fulfillments found" });
     }
 
-    // 2. Update tracking
-    const updatedTracking = await shopify.rest.Fulfillment.updateTracking({
+    // Update tracking
+    const updated = await Fulfillment.update({
       session,
-      fulfillment_id: fulfillment.id,
-      tracking_info: {
-        number: "1Z001985YW99744790",
-        company: "Shekhar Logistics",
-        url: "https://wwwapps.ups.com/WebTracking",
-      },
-      notify_customer: true,
+      id: fulfillment.id,
+      order_id: orderId,
+      tracking_company: "Shekhar",
+      tracking_number: "1Z001985YW99744790",
+      tracking_url:
+        "https://wwwapps.ups.com/WebTracking?tracknum=1Z001985YW99744790",
     });
 
-    res.json({ success: true, data: updatedTracking });
-  } catch (error) {
-    console.error("Tracking update error:", error);
-    res.json({ success: false, error: error.message });
+    res.send({ success: true, data: updated });
+  } catch (e) {
+    console.error("Tracking update error:", e);
+    res.send({ success: false, error: e.message });
   }
 });
 
