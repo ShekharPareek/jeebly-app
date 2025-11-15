@@ -458,24 +458,55 @@ app.get("/api/orders/all", async (_req, res) => {
 // Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
+    const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    const session = res.locals.shopify.session;
+    if (!orderId) {
+      return res.json({ success: false, error: "Missing orderId" });
+    }
 
-    const order = new shopify.rest.Order({ session });
-    order.id = orderId;
+    // Convert Shopify GID → numeric ID
+    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    const result = await order.update({
-      note: "Tracking updated by extension",
+    // 1. Fetch the order using REST
+    // const order = await shopify.rest.Order.find({
+    //   session,
+    //   id: numericOrderId,
+    // });
+
+    // const fulfillment = order.fulfillments?.[0];
+
+    // if (!fulfillment) {
+    //   return res.json({
+    //     success: false,
+    //     error: "No fulfillment found for this order",
+    //   });
+    // }
+
+    // const fulfillmentId = fulfillment.id;
+
+    // 2. Update tracking info (REST API)
+    const order = await shopify.api.rest.Order({
+      session: res.locals.shopify.session,
+      status: "any"
     });
-
-    res.json({ success: true, result });
+    order.id = numericOrderId;
+    order.fulfillments = [
+      {
+        "tracking_company": "new Shekhar",
+        "tracking_number": "SH342229292",
+        "tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"
+      }
+    ];
+    await order.save({
+      update: true,
+    });
+    return res.json({ success: true, data: response });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
-
 
 
 
