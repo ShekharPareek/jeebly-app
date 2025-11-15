@@ -8,7 +8,6 @@ import { join } from "path";
 import { readFileSync } from "fs";
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-import { Order, Fulfillment } from "@shopify/shopify-api/rest/admin/2024-07";
 
 dotenv.config();
 
@@ -462,32 +461,46 @@ app.post("/api/update-tracking", async (req, res) => {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    // Load order using REST API
-    const order = await Order.find({
+    if (!orderId) {
+      return res.json({ success: false, error: "Missing orderId" });
+    }
+
+    // Convert Shopify GID → numeric ID
+    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+
+    // 1. Fetch the order using REST
+    const order = await shopify.rest.Order.find({
       session,
-      id: orderId,
+      id: numericOrderId,
     });
 
     const fulfillment = order.fulfillments?.[0];
+
     if (!fulfillment) {
-      return res.send({ success: false, error: "No fulfillments found" });
+      return res.json({
+        success: false,
+        error: "No fulfillment found for this order",
+      });
     }
 
-    // Update tracking
-    const updated = await Fulfillment.update({
+    const fulfillmentId = fulfillment.id;
+
+    // 2. Update tracking info (REST API)
+    const response = await shopify.rest.Fulfillment.updateTracking({
       session,
-      id: fulfillment.id,
-      order_id: orderId,
-      tracking_company: "Shekhar",
-      tracking_number: "1Z001985YW99744790",
-      tracking_url:
-        "https://wwwapps.ups.com/WebTracking?tracknum=1Z001985YW99744790",
+      fulfillment_id: fulfillmentId,
+      tracking_info: {
+        number: "1Z001985YW99744790",
+        company: "Shekhar",
+        url: "https://wwwapps.ups.com/WebTracking",
+      },
+      notify_customer: true,
     });
 
-    res.send({ success: true, data: updated });
-  } catch (e) {
-    console.error("Tracking update error:", e);
-    res.send({ success: false, error: e.message });
+    return res.json({ success: true, data: response });
+  } catch (error) {
+    console.error("Tracking update error:", error);
+    res.json({ success: false, error: error.message });
   }
 });
 
