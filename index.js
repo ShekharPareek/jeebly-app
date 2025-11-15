@@ -453,22 +453,25 @@ app.get("/api/orders/all", async (_req, res) => {
 
 
 // tracking number update
-// tracking number update
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    const client = new shopify.api.clients.Graphql({ session });
+    const client = new shopify.clients.Graphql({ session });
 
-    // 1. Fetch fulfillmentId using orderId
+    // STEP 1 — Get Fulfillment ID
     const orderResp = await client.query({
       data: {
         query: `
           query GetFulfillment($id: ID!) {
             order(id: $id) {
-              fulfillments(first: 1) {
-                nodes { id }
+              fulfillments(first: 10) {
+                edges {
+                  node {
+                    id
+                  }
+                }
               }
             }
           }
@@ -478,7 +481,7 @@ app.post("/api/update-tracking", async (req, res) => {
     });
 
     const fulfillmentId =
-      orderResp.body?.data?.order?.fulfillments?.nodes?.[0]?.id;
+      orderResp.body?.data?.order?.fulfillments?.edges?.[0]?.node?.id;
 
     if (!fulfillmentId) {
       return res.send({
@@ -487,7 +490,7 @@ app.post("/api/update-tracking", async (req, res) => {
       });
     }
 
-    // 2. Update tracking
+    // STEP 2 — Update Tracking
     const updateResp = await client.query({
       data: {
         query: `
@@ -516,12 +519,13 @@ app.post("/api/update-tracking", async (req, res) => {
       }
     });
 
-    res.send({ success: true, data: updateResp.body });
+    res.send({ success: true, data: updateResp.body.data });
 
   } catch (error) {
     res.send({ success: false, error: error.message });
   }
 });
+
 
 
 
