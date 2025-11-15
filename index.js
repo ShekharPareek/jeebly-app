@@ -454,76 +454,51 @@ app.get("/api/orders/all", async (_req, res) => {
 
 // tracking number update
 // tracking number update
+// UPDATE TRACKING USING REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
 
-    const client = new shopify.api.clients.Graphql({ session });
+    if (!orderId) {
+      return res.json({ success: false, error: "Order ID missing" });
+    }
 
-    // 1. Fetch fulfillmentId
-    const orderResp = await client.query({
-      data: {
-        query: `
-          query GetFulfillment($id: ID!) {
-            order(id: $id) {
-              fulfillments(first: 1) {
-                edges {
-                  node {
-                    id
-                  }
-                }
-              }
-            }
-          }
-        `,
-        variables: { id: orderId }
-      }
+    // 1️⃣ Get order details using REST
+    const order = await shopify.rest.Order.find({
+      session,
+      id: Number(orderId.replace("gid://shopify/Order/", "")),
     });
 
-    const fulfillmentId =
-      orderResp.body?.data?.order?.fulfillments?.edges?.[0]?.node?.id;
-
-    if (!fulfillmentId) {
-      return res.send({
+    if (!order.fulfillments || order.fulfillments.length === 0) {
+      return res.json({
         success: false,
-        error: "No fulfillment found for this order",
+        error: "No fulfillment exists for this order",
       });
     }
 
-    // 2. Update tracking
-    const updateResp = await client.query({
-      data: {
-        query: `
-          mutation UpdateTracking(
-            $fulfillmentId: ID!,
-            $tracking: FulfillmentTrackingInput!
-          ) {
-            fulfillmentTrackingInfoUpdate(
-              fulfillmentId: $fulfillmentId,
-              trackingInfoInput: $tracking,
-              notifyCustomer: true
-            ) {
-              userErrors { message }
-              fulfillment { id status }
-            }
-          }
-        `,
-        variables: {
-          fulfillmentId,
-          tracking: {
-            number: "1Z001985YW99744790",
-            company: "Shekhar",
-            url: "https://wwwapps.ups.com/WebTracking"
-          }
-        }
-      }
+    const fulfillmentId = order.fulfillments[0].id;
+
+    // 2️⃣ Update tracking using REST
+    const fulfillment = new shopify.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
+    fulfillment.order_id = order.id;
+
+    fulfillment.tracking_company = "Shekhar Logistics";
+    fulfillment.tracking_number = "1Z001985YW99744790";
+    fulfillment.tracking_url = "https://wwwapps.ups.com/WebTracking";
+
+    await fulfillment.save({ update: true });
+
+    return res.json({
+      success: true,
+      message: "Tracking updated successfully",
+      fulfillmentId,
     });
 
-    res.send({ success: true, data: updateResp.body });
-
   } catch (error) {
-    res.send({ success: false, error: error.message });
+    console.error("Tracking update error:", error);
+    return res.json({ success: false, error: error.message });
   }
 });
 
