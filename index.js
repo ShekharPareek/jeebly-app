@@ -486,7 +486,7 @@ app.post("/api/update-tracking", async (req, res) => {
     // const fulfillmentId = fulfillment.id;
 
     // 2. Update tracking info (REST API)
-    const order = await shopify.api.rest.Order({
+    const order = new shopify.api.rest.Order({
       session: res.locals.shopify.session,
       status: "any"
     });
