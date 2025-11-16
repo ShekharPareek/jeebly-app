@@ -491,7 +491,9 @@ app.post("/api/update-tracking", async (req, res) => {
     };
 
     // STEP 3: Save fulfillment
-    const response = await fulfillment.save({ update: true});
+    await fulfillment.save({
+      update: true,
+    });
 
     return res.json({ success: true, data: response });
   } catch (error) {
