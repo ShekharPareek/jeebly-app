@@ -478,7 +478,7 @@ app.post("/api/update-tracking", async (req, res) => {
     }
 
     // Step 2: Create new Fulfillment with tracking
-    const fulfillment = new shopify.rest.Order({
+    const fulfillment = new shopify.rest.Fulfillment({
       session: res.locals.shopify.session,
     });
 
