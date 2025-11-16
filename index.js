@@ -464,10 +464,10 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Convert Shopify GID → numeric ID
+    // Convert Shopify gid → numeric ID
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // Step 1: Load order using REST API
+    // STEP 1: Fetch order
     const order = await shopify.api.rest.Order.find({
       session,
       id: numericOrderId,
@@ -477,21 +477,21 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Order not found" });
     }
 
-    // Step 2: Create new Fulfillment with tracking
-    const fulfillment = new shopify.rest.Fulfillment({
-      session: res.locals.shopify.session,
-    });
+    // STEP 2: Create the Fulfillment
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
-    fulfillment.order_id = numericOrderId;
+    fulfillment.order_id = Number(numericOrderId);
     fulfillment.tracking_company = "Shekhar";
     fulfillment.tracking_number = "SH342229292";
     fulfillment.tracking_url = "https://tracking.com/track/SH342229292";
+
     fulfillment.line_items = order.line_items.map((item) => ({
       id: item.id,
       quantity: item.quantity,
     }));
 
-    const response = await fulfillment.save();
+    // STEP 3: Save fulfillment
+    const response = await fulfillment.save({ update: false });
 
     return res.json({ success: true, data: response });
   } catch (error) {
@@ -499,7 +499,6 @@ app.post("/api/update-tracking", async (req, res) => {
     res.json({ success: false, error: error.message });
   }
 });
-
 
 
 
