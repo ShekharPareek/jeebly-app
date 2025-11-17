@@ -490,7 +490,7 @@ app.post("/api/update-tracking", async (req, res) => {
     fulfillment.order_id = numericOrderId;
 
     const FinalFullfillament = await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer":false, "tracking_info": {"company": "Jeebly", "number": "1Z001985YW99744790"}}},
+      body: {"fulfillment": {"notify_customer":true, "tracking_info": {"company": "Jeebly", "number": "1Z001985YW99744790"}}},
     });
    
     console.log("Final fulfillment object:", FinalFullfillament);
