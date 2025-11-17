@@ -488,7 +488,7 @@ app.post("/api/update-tracking", async (req, res) => {
 
     fulfillment.id = fulfillmentId;
     await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "UPS", "number": "1Z001985YW99744790"}}},
+      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "UPS", "number": "JW239045909"}}},
     });
     const response = await fulfillment.save({ update: true });
 
