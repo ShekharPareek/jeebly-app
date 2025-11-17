@@ -466,9 +466,9 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
     // STEP 1: Get existing fulfillments (correct namespace)
-    const fnumber = await shopify.rest.Fulfillment.all({
+    const fnumber = await shopify.api.rest.Fulfillment.all({
       session: res.locals.shopify.session,
-      order_id: numericOrderId,
+      order_id: numericOrderId
     });
 
     console.log("Fulfillments returned:", fnumber.data);
