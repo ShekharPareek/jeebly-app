@@ -463,32 +463,31 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
+    // Extract numeric order id (from gid)
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // STEP 1: Get existing fulfillments
-    const fulfillments = await shopify.api.rest.Fulfillment.all({
+    // 1. Fetch fulfillment orders
+    const foResponse = await shopify.api.rest.FulfillmentOrder.all({
       session,
       order_id: numericOrderId,
     });
 
-    console.log("Fulfillments returned:", fulfillments.data);
+    const fulfillmentOrders = foResponse.data;
 
-    if (fulfillments.data.length === 0) {
+    if (!fulfillmentOrders || fulfillmentOrders.length === 0) {
       return res.json({
         success: false,
-        error: "No existing fulfillments found.",
+        error: "No fulfillment orders found for this order.",
       });
     }
 
-    const fulfillmentId = fulfillments.data[0].id;
+    console.log("Fulfillment Orders:", fulfillmentOrders);
 
-    console.log("Using fulfillmentId:", fulfillmentId);
-    console.log("Using order_id:", numericOrderId);
-
-    // STEP 2: Update tracking
+    // 2. CREATE a new fulfillment
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
-    fulfillment.id = fulfillmentId;
-    fulfillment.order_id = numericOrderId;
+
+    // Required fields
+    fulfillment.notify_customer = false;
 
     fulfillment.tracking_info = {
       number: "MS1562678",
@@ -496,14 +495,17 @@ app.post("/api/update-tracking", async (req, res) => {
       company: "Shekhar Express",
     };
 
-    fulfillment.notify_customer = false;
+    // Attach fulfillment order IDs
+    fulfillment.line_items_by_fulfillment_order = fulfillmentOrders.map((fo) => ({
+      fulfillment_order_id: fo.id,
+    }));
 
-    console.log("Final fulfillment object:", fulfillment);
+    // Save new fulfillment
+    const result = await fulfillment.save({
+      update: false, // IMPORTANT: creating new fulfillment
+    });
 
-    const response = await fulfillment.save({ update: true });
-
-    return res.json({ success: true, data: response });
-
+    return res.json({ success: true, result });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
