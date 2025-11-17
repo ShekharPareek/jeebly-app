@@ -464,46 +464,41 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Extract numeric id
+    // Extract numeric ID
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1. Get fulfillment orders
-    const foResponse = await shopify.api.rest.FulfillmentOrder.all({
+    // STEP 1: Get existing fulfillments
+    const fulfillments = await shopify.api.rest.Fulfillment.all({
       session,
       order_id: numericOrderId,
     });
 
-    const fulfillmentOrders = foResponse.data;
-
-    if (!fulfillmentOrders.length) {
+    if (fulfillments.data.length === 0) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found for this order",
+        error: "No existing fulfillments found. Order may not be fulfilled yet.",
       });
     }
 
-    const fulfillmentOrderId = fulfillmentOrders[0].id;
+    // Use first fulfillment
+    const fulfillmentId = fulfillments.data[0].id;
 
-    // 2. Create fulfillment with tracking
-    // 2. Create fulfillment with tracking
-const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    // STEP 2: Update tracking
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
+    fulfillment.order_id = numericOrderId;
 
-fulfillment.notify_customer = false;
+    fulfillment.tracking_info = {
+      number: "MS1562678",
+      url: "https://tracking.com?num=MS1562678",
+      company: "Shekhar Express",
+    };
 
-fulfillment.tracking_info = {
-  number: "MS1562678",
-  url: "https://tracking.com?num=MS1562678",
-  company: "Shekhar Express",
-};
+    const response = await fulfillment.save({
+      update: true,
+    });
 
-// attach all items inside the fulfillment order
-fulfillment.line_items_by_fulfillment_order = fulfillmentOrders.map(fo => ({
-  fulfillment_order_id: fo.id,
-}));
-
-const response = await fulfillment.save({
-  update: true,
-});
+    return res.json({ success: true, data: response });
 
   } catch (error) {
     console.error("Tracking update error:", error);
