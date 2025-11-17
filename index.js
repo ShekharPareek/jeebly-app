@@ -463,54 +463,47 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Extract numeric order id (from gid)
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1. Fetch fulfillment orders
-    const foResponse = await shopify.api.rest.FulfillmentOrder.all({
+    // 1️⃣ Fetch existing fulfillments
+    const fResponse = await shopify.api.rest.Fulfillment.all({
       session,
       order_id: numericOrderId,
     });
 
-    const fulfillmentOrders = foResponse.data;
+    const fulfillments = fResponse.data;
 
-    if (!fulfillmentOrders || fulfillmentOrders.length === 0) {
+    if (!fulfillments.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found for this order.",
+        error: "No existing fulfillments found.",
       });
     }
 
-    console.log("Fulfillment Orders:", fulfillmentOrders);
+    // 2️⃣ Update tracking on the FIRST fulfillment
+    const fulfillmentId = fulfillments[0].id;
 
-    // 2. CREATE a new fulfillment
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
 
-    // Required fields
-    fulfillment.notify_customer = false;
+    fulfillment.tracking_number = "MS1562678";
+    fulfillment.tracking_company = "Shekhar Express";
+    fulfillment.tracking_url = `https://tracking.com?num=MS1562678`;
 
-    fulfillment.tracking_info = {
-      number: "MS1562678",
-      url: "https://tracking.com?num=MS1562678",
-      company: "Shekhar Express",
-    };
+    const result = await fulfillment.save({ update: true });
 
-    // Attach fulfillment order IDs
-    fulfillment.line_items_by_fulfillment_order = fulfillmentOrders.map((fo) => ({
-      fulfillment_order_id: fo.id,
-    }));
-
-    // Save new fulfillment
-    const result = await fulfillment.save({
-      update: false, // IMPORTANT: creating new fulfillment
+    return res.json({
+      success: true,
+      message: "Tracking updated successfully",
+      data: result,
     });
 
-    return res.json({ success: true, result });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
+
 
 
 
