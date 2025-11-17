@@ -488,7 +488,7 @@ app.post("/api/update-tracking", async (req, res) => {
 
     fulfillment.id = fulfillmentId;
     await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "Jeebly", "number": "JW239045909","tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"}}},
+      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "other", "number": "JW239045909","tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"}}},
     });
     const response = await fulfillment.save({ update: true });
 
