@@ -465,14 +465,15 @@ app.post("/api/update-tracking", async (req, res) => {
 
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // STEP 1: Get existing fulfillments
+    // STEP 1: Get existing fulfillments (correct namespace)
     const fnumber = await shopify.rest.Fulfillment.all({
-      session: session,
+      session,
       order_id: numericOrderId,
     });
+
     console.log("Fulfillments returned:", fnumber.data);
 
-    if (fnumber.data.length === 0) {
+    if (!fnumber.data.length) {
       return res.json({
         success: false,
         error: "No existing fulfillments found.",
@@ -480,21 +481,15 @@ app.post("/api/update-tracking", async (req, res) => {
     }
 
     const fulfillmentId = fnumber.data[0].id;
-
     console.log("Using fulfillmentId:", fulfillmentId);
-    console.log("Using order_id:", numericOrderId);
 
     // STEP 2: Update tracking
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
     fulfillment.id = fulfillmentId;
-    fulfillment.order_id = numericOrderId;
-
-    const FinalFullfillament = await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer":true, "tracking_info": {"company": "Jeebly", "number": "1Z001985YW99744790"}}},
+    await fulfillment.update_tracking({
+      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "UPS", "number": "1Z001985YW99744790"}}},
     });
-   
-    console.log("Final fulfillment object:", FinalFullfillament);
-
     const response = await fulfillment.save({ update: true });
 
     return res.json({ success: true, data: response });
