@@ -466,8 +466,8 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
     // STEP 1: Get existing fulfillments (correct namespace)
-    const fnumber = await shopify.rest.Fulfillment.all({
-      session,
+    const fnumber = await shopify.api.rest.Fulfillment.all({
+      session: res.locals.shopify.session,
       order_id: numericOrderId,
     });
 
@@ -484,7 +484,7 @@ app.post("/api/update-tracking", async (req, res) => {
     console.log("Using fulfillmentId:", fulfillmentId);
 
     // STEP 2: Update tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    const fulfillment = new shopify.api.rest.Fulfillment({  session: res.locals.shopify.session });
 
     fulfillment.id = fulfillmentId;
     await fulfillment.update_tracking({
