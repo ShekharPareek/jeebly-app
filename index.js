@@ -454,57 +454,53 @@ app.get("/api/orders/all", async (_req, res) => {
 // tracking number update
 // tracking number update
 // UPDATE TRACKING USING REST API
-// Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
-    console.log("Incoming orderId:", orderId);
 
     if (!orderId) {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Extract numeric ID
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
     // STEP 1: Get existing fulfillments
     const fulfillments = await shopify.api.rest.Fulfillment.all({
       session,
-      order_id: "6833812865251",
+      order_id: numericOrderId,
     });
+
+    console.log("Fulfillments returned:", fulfillments.data);
 
     if (fulfillments.data.length === 0) {
       return res.json({
         success: false,
-        error: "No existing fulfillments found. Order may not be fulfilled yet.",
+        error: "No existing fulfillments found.",
       });
     }
 
-    // Use first fulfillment
     const fulfillmentId = fulfillments.data[0].id;
 
+    console.log("Using fulfillmentId:", fulfillmentId);
+    console.log("Using order_id:", numericOrderId);
+
     // STEP 2: Update tracking
-   // STEP 2: Update tracking
-const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
+    fulfillment.order_id = numericOrderId;
 
-// Required IDs
-fulfillment.id = fulfillmentId;          // existing fulfillment ID
-fulfillment.order_id = numericOrderId;   // order ID
+    fulfillment.tracking_info = {
+      number: "MS1562678",
+      url: "https://tracking.com?num=MS1562678",
+      company: "Shekhar Express",
+    };
 
-// Tracking info
-fulfillment.tracking_info = {
-  number: "MS1562678",
-  url: "https://tracking.com?num=MS1562678",
-  company: "Shekhar Express",
-};
+    fulfillment.notify_customer = false;
 
-// Must include notify_customer (Shopify requires it)
-fulfillment.notify_customer = false;
+    console.log("Final fulfillment object:", fulfillment);
 
-const response = await fulfillment.save({
-  update: true,
-});
+    const response = await fulfillment.save({ update: true });
 
     return res.json({ success: true, data: response });
 
