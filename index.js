@@ -485,7 +485,7 @@ app.post("/api/update-tracking", async (req, res) => {
     const fulfillmentOrderId = fulfillmentOrders[0].id;
 
     // 2. Create fulfillment with tracking
-   // 2. Create fulfillment with tracking
+    // 2. Create fulfillment with tracking
 const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
 fulfillment.notify_customer = false;
@@ -505,6 +505,11 @@ const response = await fulfillment.save({
   update: true,
 });
 
+  } catch (error) {
+    console.error("Tracking update error:", error);
+    res.json({ success: false, error: error.message });
+  }
+});
 
 
 
