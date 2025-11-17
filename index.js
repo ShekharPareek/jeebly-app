@@ -466,21 +466,20 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
     // STEP 1: Get existing fulfillments
-    const fulfillments = await shopify.api.rest.Fulfillment.all({
-      session,
+    const fnumber = await shopify.rest.Fulfillment.all({
+      session: session,
       order_id: numericOrderId,
     });
+    console.log("Fulfillments returned:", fnumber.data);
 
-    console.log("Fulfillments returned:", fulfillments.data);
-
-    if (fulfillments.data.length === 0) {
+    if (fnumber.data.length === 0) {
       return res.json({
         success: false,
         error: "No existing fulfillments found.",
       });
     }
 
-    const fulfillmentId = fulfillments.data[0].id;
+    const fulfillmentId = fnumber.data[0].id;
 
     console.log("Using fulfillmentId:", fulfillmentId);
     console.log("Using order_id:", numericOrderId);
@@ -490,11 +489,11 @@ app.post("/api/update-tracking", async (req, res) => {
     fulfillment.id = fulfillmentId;
     fulfillment.order_id = numericOrderId;
 
-    await fulfillment.update_tracking({
+    const FinalFullfillament = await fulfillment.update_tracking({
       body: {"fulfillment": {"notify_customer": true, "tracking_info": {"company": "UPS", "number": "1Z001985YW99744790"}}},
     });
    
-    console.log("Final fulfillment object:", fulfillment);
+    console.log("Final fulfillment object:", FinalFullfillament);
 
     const response = await fulfillment.save({ update: true });
 
