@@ -465,56 +465,46 @@ app.post("/api/update-tracking", async (req, res) => {
 
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1️⃣ Fetch existing fulfillments
-const fResponse = await shopify.api.rest.Fulfillment.all({
-  session,
-  order_id: numericOrderId,
-});
+    // STEP 1: Get existing fulfillments
+    const fulfillments = await shopify.api.rest.Fulfillment.all({
+      session,
+      order_id: numericOrderId,
+    });
 
-const fulfillments = fResponse.data;
+    console.log("Fulfillments returned:", fulfillments.data);
 
-console.log("Fulfillments:", fulfillments);
+    if (fulfillments.data.length === 0) {
+      return res.json({
+        success: false,
+        error: "No existing fulfillments found.",
+      });
+    }
 
-// 2️⃣ No fulfillments? → return error
-if (!fulfillments.length) {
-  return res.json({
-    success: false,
-    error: "No existing fulfillments found for this order",
-  });
-}
+    const fulfillmentId = fulfillments.data[0].id;
 
-// 3️⃣ Get the FIRST fulfillment ID
-const fulfillmentId = fulfillments[0]?.id;
+    console.log("Using fulfillmentId:", fulfillmentId);
+    console.log("Using order_id:", numericOrderId);
 
-if (!fulfillmentId) {
-  return res.json({
-    success: false,
-    error: "Fulfillment exists but has no ID – Shopify API mismatch",
-  });
-}
+    // STEP 2: Update tracking
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
+    fulfillment.order_id = numericOrderId;
 
-// 4️⃣ Update tracking
-const fulfillment = new shopify.api.rest.Fulfillment({ session });
-fulfillment.id = fulfillmentId;
+    await fulfillment.update_tracking({
+      body: {"fulfillment": {"notify_customer": true, "tracking_info": {"company": "UPS", "number": "1Z001985YW99744790"}}},
+    });
+   
+    console.log("Final fulfillment object:", fulfillment);
 
-fulfillment.tracking_number = "MS1562678";
-fulfillment.tracking_company = "Shekhar Express";
-fulfillment.tracking_url = "https://tracking.com?num=MS1562678";
+    const response = await fulfillment.save({ update: true });
 
-const result = await fulfillment.save({ update: true });
-
-return res.json({
-  success: true,
-  message: "Tracking updated successfully",
-  data: result,
-});
+    return res.json({ success: true, data: response });
 
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
-
 
 
 
