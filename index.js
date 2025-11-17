@@ -459,6 +459,7 @@ app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
+    console.log("Incoming orderId:", orderId);
 
     if (!orderId) {
       return res.json({ success: false, error: "Missing orderId" });
