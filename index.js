@@ -484,19 +484,26 @@ app.post("/api/update-tracking", async (req, res) => {
     const fulfillmentId = fulfillments.data[0].id;
 
     // STEP 2: Update tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
-    fulfillment.id = fulfillmentId;
-    fulfillment.order_id = numericOrderId;
+   // STEP 2: Update tracking
+const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
-    fulfillment.tracking_info = {
-      number: "MS1562678",
-      url: "https://tracking.com?num=MS1562678",
-      company: "Shekhar Express",
-    };
+// Required IDs
+fulfillment.id = fulfillmentId;          // existing fulfillment ID
+fulfillment.order_id = numericOrderId;   // order ID
 
-    const response = await fulfillment.save({
-      update: true,
-    });
+// Tracking info
+fulfillment.tracking_info = {
+  number: "MS1562678",
+  url: "https://tracking.com?num=MS1562678",
+  company: "Shekhar Express",
+};
+
+// Must include notify_customer (Shopify requires it)
+fulfillment.notify_customer = false;
+
+const response = await fulfillment.save({
+  update: true,
+});
 
     return res.json({ success: true, data: response });
 
