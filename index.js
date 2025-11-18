@@ -34,7 +34,7 @@ let shopId = '';
 
 
 
- // Function to verify the Shopify webhook HMAC
+// Function to verify the Shopify webhook HMAC
 function verifyShopifyWebhook(req) {
   const hmac = req.headers['x-shopify-hmac-sha256'];
   if (!hmac) return false;  // Return false if HMAC is missing
@@ -58,17 +58,17 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
   if (!verifyShopifyWebhook(req)) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  
- 
+
+
   try {
-     const payload = req.body;
+    const payload = req.body;
 
     // res.status(200).json({ success: true, message: 'Webhook received' });
     const orderId = payload?.id;
     // console.log("webhook request data",req.query.shopid).
 
     const orderStatusUrl = payload.order_status_url;
-  
+
 
 
     // Use a regular expression to extract the shop ID from the URL
@@ -82,7 +82,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
     console.log("Webhook payload:", payload);
 
 
-   
+
 
     // new code added 07/05/2025
 
@@ -93,10 +93,10 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
     // new code added 07/05/2025
 
     // Process webhook data
-    await processWebhookData(payload,extractedShopId);
+    await processWebhookData(payload, extractedShopId);
 
     res.status(200).json({ success: true, message: 'Webhook received' });
-   
+
   } catch (error) {
     console.error('Error processing webhook:', error);
 
@@ -121,57 +121,57 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 
 
 
-async function processWebhookData(payload,extractedShopId) {
+async function processWebhookData(payload, extractedShopId) {
   console.log("Processing webhook data:", JSON.stringify(payload, null, 2));
 
 
-//   // Fetch the default address and configure dat.
+  //   // Fetch the default address and configure dat.
   const [defaultAddress, getConfigure] = await Promise.all([
     fetchDefaultAddress(extractedShopId),
     fetchConfigureData(extractedShopId)
   ]);
-  
+
   if (!defaultAddress) {
     console.error("No default address found. Shipment creation aborted.");
     return;
   }
 
   // Extract data from the webhook payload.
-  const description = 
-  payload?.line_items?.length > 0
+  const description =
+    payload?.line_items?.length > 0
       ? payload.line_items.map(item => {
-          const details = [];
+        const details = [];
 
-          if (item?.sku && item.sku !== "no sku found") {
-              details.push(`SKU: ${item.sku}`);
-          }
+        if (item?.sku && item.sku !== "no sku found") {
+          details.push(`SKU: ${item.sku}`);
+        }
 
-          if (item?.title && item.title !== "title not defined") {
-              details.push(`SKU Name: ${item.title}`);
-          }
+        if (item?.title && item.title !== "title not defined") {
+          details.push(`SKU Name: ${item.title}`);
+        }
 
-          if (item?.variant_title && item.variant_title !== "size and colors not defined") {
-              details.push(`Color & Size: ${item.variant_title}`);
-          }
+        if (item?.variant_title && item.variant_title !== "size and colors not defined") {
+          details.push(`Color & Size: ${item.variant_title}`);
+        }
 
-          if (item?.quantity != null) {
-              details.push(`Qty: ${item.quantity}`);
-          }
+        if (item?.quantity != null) {
+          details.push(`Qty: ${item.quantity}`);
+        }
 
-          if (item?.grams != null && item.grams > 0) {
-              let weightKg = (item.grams / 1000).toFixed(1); // Convert grams to KG
-              details.push(`Weight: ${weightKg} kg`);
-          }
+        if (item?.grams != null && item.grams > 0) {
+          let weightKg = (item.grams / 1000).toFixed(1); // Convert grams to KG
+          details.push(`Weight: ${weightKg} kg`);
+        }
 
-          return details.join(', ');
+        return details.join(', ');
       }).join(' | ')
       : "";
 
-// | ${item?.grams || ""}.........
+  // | ${item?.grams || ""}.........
   const weight = Math.round(payload?.line_items?.[0]?.grams || 1000);
   const codAmount = parseFloat(payload?.total_price) || 0;
   const pieces = payload?.line_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const timeZone = payload?.line_items?.timezone||"00:00";
+  const timeZone = payload?.line_items?.timezone || "00:00";
   const dropoffName = payload?.shipping_address?.name || "Unknown";
   const dropoffPhone = payload?.shipping_address?.phone || "Unknown";
   const selectedArea = `${payload?.shipping_address?.address1 || ""} ${payload?.shipping_address?.address2 || ""}`.trim() || "Unknown Area";
@@ -220,98 +220,98 @@ async function processWebhookData(payload,extractedShopId) {
   });
 
   // // Function to call the bookshipment API
-async function createShipment({
-  description,
-  weight,
-  codAmountToUse,
-  pieces,
-  dropoffName,
-  dropoffPhone,
-  selectedArea,
-  selectedCity,
-  paymentType,
-  defaultAddress,
-  orderNumber,
-  pickupDate,
-  getConfigure,
-  clientKey,
-  timezone
-}) {
+  async function createShipment({
+    description,
+    weight,
+    codAmountToUse,
+    pieces,
+    dropoffName,
+    dropoffPhone,
+    selectedArea,
+    selectedCity,
+    paymentType,
+    defaultAddress,
+    orderNumber,
+    pickupDate,
+    getConfigure,
+    clientKey,
+    timezone
+  }) {
 
 
-  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-  const now = Date.now();
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const now = Date.now();
 
-  // Check if this order was recently processed
-  const lastTime = lastSuccessfulShipments[orderNumber];
-  const oneMinute = 60 * 1000;
+    // Check if this order was recently processed
+    const lastTime = lastSuccessfulShipments[orderNumber];
+    const oneMinute = 60 * 1000;
 
-  if (lastTime && now - lastTime < oneMinute) {
-    const waitTime = oneMinute - (now - lastTime);
-    console.log(`Order ${orderNumber} was processed recently. Waiting ${waitTime / 1000}s...`);
-    await delay(waitTime);
-  }
+    if (lastTime && now - lastTime < oneMinute) {
+      const waitTime = oneMinute - (now - lastTime);
+      console.log(`Order ${orderNumber} was processed recently. Waiting ${waitTime / 1000}s...`);
+      await delay(waitTime);
+    }
 
-  // Fetch the stored client key from the API
- 
+    // Fetch the stored client key from the API
 
-  const url = `https://demo.jeebly.com/app/create_shipment_webhook?client_key=${clientKey}`;
-  const body = JSON.stringify({
-    client_key:clientKey,
-    delivery_type: getConfigure.service_type || "Next Day",
-    load_type: getConfigure.courier_type || "Non-document",
-    consignment_type: "FORWARD",
-    description: description,
-    weight: weight || "1000",
-    payment_type: paymentType,
-    cod_amount:  codAmountToUse||"0.00",
-    num_pieces: pieces,
-    customer_reference_number: orderNumber || "",
-    origin_address_name: defaultAddress.addr_contact_person||"",
-    origin_address_mob_no_country_code: "",
-    origin_address_mobile_number: defaultAddress.addr_mobile_number||"",
-    origin_address_house_no: defaultAddress.addr_house_no||"",
-    origin_address_building_name: defaultAddress.addr_building_name || "",
-    origin_address_area: defaultAddress.addr_area,
-    origin_address_landmark: defaultAddress.addr_landmark,
-    origin_address_city: defaultAddress.addr_city||"",
-    origin_address_type: "Normal",
-    destination_address_name: dropoffName||"",
-    destination_address_mob_no_country_code: "",
-    destination_address_mobile_number: dropoffPhone || "",
-    destination_address_house_no: "",
-    destination_address_building_name: "",
-    destination_address_area: selectedArea||"",
-    destination_address_landmark: "",
-    destination_address_city: selectedCity || "",
-    destination_address_type: "Normal",
-    pickup_date: pickupDate || "2024-09-12",
-    time_zone : timezone || "00:00"
-  });
 
-  console.log("Creating shipment with the following payload:");
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { 'Content-Type': 'application/json' },
-      body: body
+    const url = `https://demo.jeebly.com/app/create_shipment_webhook?client_key=${clientKey}`;
+    const body = JSON.stringify({
+      client_key: clientKey,
+      delivery_type: getConfigure.service_type || "Next Day",
+      load_type: getConfigure.courier_type || "Non-document",
+      consignment_type: "FORWARD",
+      description: description,
+      weight: weight || "1000",
+      payment_type: paymentType,
+      cod_amount: codAmountToUse || "0.00",
+      num_pieces: pieces,
+      customer_reference_number: orderNumber || "",
+      origin_address_name: defaultAddress.addr_contact_person || "",
+      origin_address_mob_no_country_code: "",
+      origin_address_mobile_number: defaultAddress.addr_mobile_number || "",
+      origin_address_house_no: defaultAddress.addr_house_no || "",
+      origin_address_building_name: defaultAddress.addr_building_name || "",
+      origin_address_area: defaultAddress.addr_area,
+      origin_address_landmark: defaultAddress.addr_landmark,
+      origin_address_city: defaultAddress.addr_city || "",
+      origin_address_type: "Normal",
+      destination_address_name: dropoffName || "",
+      destination_address_mob_no_country_code: "",
+      destination_address_mobile_number: dropoffPhone || "",
+      destination_address_house_no: "",
+      destination_address_building_name: "",
+      destination_address_area: selectedArea || "",
+      destination_address_landmark: "",
+      destination_address_city: selectedCity || "",
+      destination_address_type: "Normal",
+      pickup_date: pickupDate || "2024-09-12",
+      time_zone: timezone || "00:00"
     });
 
-    console.log(`Shipment API Response Status: ${response.status}`);
+    console.log("Creating shipment with the following payload:");
 
-    const responseBody = await response.json();
-    console.log("Shipment API Response Body:", responseBody);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: body
+      });
 
-    if (response.ok) {
-      console.log("Shipment created successfully:", responseBody);
-    } else {
-      console.error("Failed to create shipment:", responseBody);
+      console.log(`Shipment API Response Status: ${response.status}`);
+
+      const responseBody = await response.json();
+      console.log("Shipment API Response Body:", responseBody);
+
+      if (response.ok) {
+        console.log("Shipment created successfully:", responseBody);
+      } else {
+        console.error("Failed to create shipment:", responseBody);
+      }
+    } catch (error) {
+      console.error("Network error while creating shipment:", error);
     }
-  } catch (error) {
-    console.error("Network error while creating shipment:", error);
   }
-}
 }
 
 // Function to fetch the default address
@@ -320,62 +320,62 @@ async function fetchDefaultAddress(extractedShopId) {
   const clientKey = extractedShopId;
   // Fetch the stored client key from the APi
 
-const url = `https://demo.jeebly.com/app/get_address?client_key=${clientKey}`;
+  const url = `https://demo.jeebly.com/app/get_address?client_key=${clientKey}`;
 
-console.log("Fetching default address from:", url);
+  console.log("Fetching default address from:", url);
 
-try {
-  const response = await fetch(url, { method: "GET" });
-  console.log(`Default Address API Response Status: ${response.status}`);
+  try {
+    const response = await fetch(url, { method: "GET" });
+    console.log(`Default Address API Response Status: ${response.status}`);
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log("Default Address API Response Body:", data);
-
-  if (data && data.success === "true" && Array.isArray(data.address)) {
-    const defaultAddr = data.address.find(addr => addr.default_address === "1");
-    if (defaultAddr) {
-      console.log("Default address found:", defaultAddr);
-      return defaultAddr;
-    } else {
-      console.error("No default address found in the response.");
-      return null;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const data = await response.json();
+    console.log("Default Address API Response Body:", data);
+
+    if (data && data.success === "true" && Array.isArray(data.address)) {
+      const defaultAddr = data.address.find(addr => addr.default_address === "1");
+      if (defaultAddr) {
+        console.log("Default address found:", defaultAddr);
+        return defaultAddr;
+      } else {
+        console.error("No default address found in the response.");
+        return null;
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching default address:", error);
   }
-} catch (error) {
-  console.error("Error fetching default address:", error);
-}
-return null; // Return null if no default address is found or if an error occurs
+  return null; // Return null if no default address is found or if an error occurs
 }
 // // Fetch configuration data from the get_configuration API
 async function fetchConfigureData(extractedShopId) {
   // Fetch the stored client key from the api
   const clientKey = extractedShopId;
-const url = `https://demo.jeebly.com/app/get_configuration?client_key=${clientKey}`;
+  const url = `https://demo.jeebly.com/app/get_configuration?client_key=${clientKey}`;
 
-console.log("Fetching configuration data from:", url);
+  console.log("Fetching configuration data from:", url);
 
-try {
-  const response = await fetch(url, { method: "GET" });
-  console.log(`Configuration API Response Status: ${response.status}`);
+  try {
+    const response = await fetch(url, { method: "GET" });
+    console.log(`Configuration API Response Status: ${response.status}`);
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Configuration API Response Body:", data);
+
+    if (data && data.success) {
+      return data; // Return configuration data if successf
+    }
+  } catch (error) {
+    console.error("Error fetching configuration data:", error);
   }
-
-  const data = await response.json();
-  console.log("Configuration API Response Body:", data);
-
-  if (data && data.success) {
-    return data; // Return configuration data if successf
-  }
-} catch (error) {
-  console.error("Error fetching configuration data:", error);
-}
-return null; // Return null if no configuration data is found or if an error occurs
+  return null; // Return null if no configuration data is found or if an error occurs
 }
 
 // Utility function to get the next day's date in the required format
@@ -418,11 +418,11 @@ app.get("/api/shop/all", async (_req, res) => {
       // const shopData = await shopify.api.rest.Shop.current({
       session: res.locals.shopify.session,
     });
-     shopId = shopData.data[0].id
-     console.log("endpoint of shop data",shopData)
+    shopId = shopData.data[0].id
+    console.log("endpoint of shop data", shopData)
     // res.status(200).json({ success: true, data:shopData});
     res.status(200).json({ success: true, data: shopData });
-   
+
   } catch (error) {
     console.error('Error fetching shopdata:', error);
     res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
@@ -440,7 +440,7 @@ app.get("/api/orders/all", async (_req, res) => {
 
     // Filter orders where cancel_reason is null..
     const filteredOrders = orderData.data.filter(order => order.cancel_reason === null);
-   
+
     // Send the filtered orders as the response
     res.status(200).json({ success: true, data: filteredOrders });
     console.log("Filtered order data retrieved successfully");
@@ -485,26 +485,13 @@ app.post("/api/update-tracking", async (req, res) => {
     const fulfillmentOrderId = fulfillmentOrders[0].id;
 
     // 2. Create fulfillment with tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
-
-    fulfillment.line_items_by_fulfillment_order = [
-      {
-        fulfillment_order_id: fulfillmentOrderId,
-      },
-    ];
-
-    fulfillment.tracking_info = {
-      number: "MS1562678",
-      url: "https://tracking.com?num=MS1562678",
-      company: "Shekhar Express",
-    };
-
-    // const res = await fulfillment.save();
-    res.status(200).json({ success: true, data });
-  } catch (error) {
-    console.error("Tracking update error:", error);
-    res.json({ success: false, error: error.message });
-  }
+    const fulfillment = new shopify.api.rest.Fulfillment({ session }); 
+    fulfillment.line_items_by_fulfillment_order = [{ fulfillment_order_id: fulfillmentOrderId, },]; 
+    fulfillment.tracking_info = { number: "MS1562678", url: "https://tracking.com?num=MS1562678", company: "others", };
+    //  const res = await fulfillment.save(); 
+     res.status(200).json({ success: true, data });
+  } catch (error) { console.error("Tracking update error:", error);
+   res.json({ success: false, error: error.message }); }
 });
 
 app.use(shopify.cspHeaders());
