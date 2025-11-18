@@ -487,7 +487,7 @@ app.post("/api/update-tracking", async (req, res) => {
     // 2. Create fulfillment with tracking
     const fulfillment = new shopify.api.rest.Fulfillment({ session }); 
     fulfillment.line_items_by_fulfillment_order = [{ fulfillment_order_id: fulfillmentOrderId, },]; 
-    fulfillment.tracking_info = { number: "MS1562678", url: "https://tracking.com?num=MS1562678", company: "others", };
+    fulfillment.tracking_info = {"notify_customer": false, "tracking_info": {"company": "Others", "number": "1MS001985YW99744790"}};
     await fulfillment.save({
       update: true,
     });
