@@ -454,6 +454,7 @@ app.get("/api/orders/all", async (_req, res) => {
 // tracking number update
 // tracking number update
 // UPDATE TRACKING USING REST API
+// Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -463,45 +464,48 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
+    // Extract numeric id
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // STEP 1: Get existing fulfillments (correct namespace)
-    const fnumber = await shopify.api.rest.Fulfillment.all({
-      session: res.locals.shopify.session,
-      order_id: numericOrderId
+    // 1. Get fulfillment orders
+    const foResponse = await shopify.api.rest.FulfillmentOrder.all({
+      session,
+      order_id: numericOrderId,
     });
 
-    console.log("Fulfillments returned:", fnumber.data);
+    const fulfillmentOrders = foResponse.data;
 
-    if (!fnumber.data.length) {
+    if (!fulfillmentOrders.length) {
       return res.json({
         success: false,
-        error: "No existing fulfillments found.",
+        error: "No fulfillment orders found for this order",
       });
     }
 
-    const fulfillmentId = fnumber.data[0].id;
-    console.log("Using fulfillmentId:", fulfillmentId);
+    const fulfillmentOrderId = fulfillmentOrders[0].id;
 
-    // STEP 2: Update tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({  session: res.locals.shopify.session });
+    // 2. Create fulfillment with tracking
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
-    fulfillment.id = fulfillmentId;
-    await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer": false, "tracking_info": {"company": "other", "number": "JW239045909","tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456"}}},
-    });
-    const response = await fulfillment.save({ update: true });
+    fulfillment.line_items_by_fulfillment_order = [
+      {
+        fulfillment_order_id: fulfillmentOrderId,
+      },
+    ];
 
-    return res.json({ success: true, data: response });
+    fulfillment.tracking_info = {
+      number: "MS1562678",
+      url: "https://tracking.com?num=MS1562678",
+      company: "Shekhar Express",
+    };
 
+    const res = await fulfillment.save();
+    res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
-
-
-
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
