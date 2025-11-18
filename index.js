@@ -455,6 +455,47 @@ app.get("/api/orders/all", async (_req, res) => {
 // tracking number update
 // UPDATE TRACKING USING REST API
 // Update tracking using REST API
+// app.post("/api/update-tracking", async (req, res) => {
+//   try {
+//     const session = res.locals.shopify.session;
+//     const { orderId } = req.body;
+
+//     if (!orderId) {
+//       return res.json({ success: false, error: "Missing orderId" });
+//     }
+
+//     // Extract numeric id
+//     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+
+//     // 1. Get fulfillment orders
+//     const foResponse = await shopify.api.rest.FulfillmentOrder.all({
+//       session,
+//       order_id: numericOrderId,
+//     });
+
+//     const fulfillmentOrders = foResponse.data;
+
+//     if (!fulfillmentOrders.length) {
+//       return res.json({
+//         success: false,
+//         error: "No fulfillment orders found for this order",
+//       });
+//     }
+
+//     const fulfillmentOrderId = fulfillmentOrders[0].id;
+
+//     // 2. Create fulfillment with tracking
+//     const fulfillment = new shopify.api.rest.Fulfillment({ session }); 
+//     fulfillment.line_items_by_fulfillment_order = [{ fulfillment_order_id: fulfillmentOrderId, },]; 
+//     fulfillment.tracking_info = {"notify_customer": false, "tracking_info": {"company": "Others", "number": "1MS001985YW99744790"}};
+//     await fulfillment.save({
+//       update: true,
+//     });
+//     //  res.status(200).json({ success: true, data });
+//   } catch (error) { console.error("Tracking update error:", error);
+//    res.json({ success: false, error: error.message }); }
+// });
+
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -464,37 +505,51 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId" });
     }
 
-    // Extract numeric id
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
 
-    // 1. Get fulfillment orders
+    // 1. Fetch fulfillment orders
     const foResponse = await shopify.api.rest.FulfillmentOrder.all({
       session,
       order_id: numericOrderId,
     });
 
-    const fulfillmentOrders = foResponse.data;
+    // 2. Only pick open or in_progress orders
+    const fulfillmentOrders = foResponse.data.filter(
+      fo => fo.status === "open" || fo.status === "in_progress"
+    );
 
     if (!fulfillmentOrders.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found for this order",
+        error: "No open fulfillment orders available to update tracking",
       });
     }
 
     const fulfillmentOrderId = fulfillmentOrders[0].id;
 
-    // 2. Create fulfillment with tracking
-    const fulfillment = new shopify.api.rest.Fulfillment({ session }); 
-    fulfillment.line_items_by_fulfillment_order = [{ fulfillment_order_id: fulfillmentOrderId, },]; 
-    fulfillment.tracking_info = {"notify_customer": false, "tracking_info": {"company": "Others", "number": "1MS001985YW99744790"}};
-    await fulfillment.save({
-      update: true,
-    });
-    //  res.status(200).json({ success: true, data });
-  } catch (error) { console.error("Tracking update error:", error);
-   res.json({ success: false, error: error.message }); }
+    // 3. Add tracking
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
+    fulfillment.line_items_by_fulfillment_order = [
+      { fulfillment_order_id: fulfillmentOrderId }
+    ];
+
+    fulfillment.tracking_info = {
+      number: "1MS001985YW99744790",
+      url: "https://tracking.com?num=1MS001985YW99744790",
+      company: "Others"
+    };
+
+    const saveResponse = await fulfillment.save({ update: true });
+
+    return res.json({ success: true, data: saveResponse });
+
+  } catch (error) {
+    console.error("Tracking update error:", error);
+    return res.json({ success: false, error: error.message });
+  }
 });
+
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
