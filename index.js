@@ -488,8 +488,10 @@ app.post("/api/update-tracking", async (req, res) => {
     const fulfillment = new shopify.api.rest.Fulfillment({ session }); 
     fulfillment.line_items_by_fulfillment_order = [{ fulfillment_order_id: fulfillmentOrderId, },]; 
     fulfillment.tracking_info = { number: "MS1562678", url: "https://tracking.com?num=MS1562678", company: "others", };
-    //  const res = await fulfillment.save(); 
-     res.status(200).json({ success: true, data });
+    await fulfillment.save({
+      update: true,
+    });
+    //  res.status(200).json({ success: true, data });
   } catch (error) { console.error("Tracking update error:", error);
    res.json({ success: false, error: error.message }); }
 });
