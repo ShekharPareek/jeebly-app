@@ -459,6 +459,7 @@ app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
     const { orderId } = req.body;
+    const {awbNumber} =req.body;
 
     if (!orderId) {
       return res.json({ success: false, error: "Missing orderId" });
@@ -470,6 +471,7 @@ app.post("/api/update-tracking", async (req, res) => {
     const fnumber = await shopify.api.rest.Fulfillment.all({
       session,
       order_id: numericOrderId,
+      trackingnumber:awbNumber
     });
 
     console.log("Fulfillments returned:", fnumber.data);
@@ -494,7 +496,7 @@ app.post("/api/update-tracking", async (req, res) => {
           notify_customer: false,
           tracking_info: {
             company: "Others",
-            number: "SH239045999",
+            number: awbNumber,
             tracking_url:
               "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
           },
