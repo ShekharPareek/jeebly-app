@@ -587,6 +587,7 @@ app.get("/api/orders/all", async (_req, res) => {
 //   }
 // });
 
+
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -599,26 +600,30 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
     const awbNumber = trackingNumber;
 
-    // STEP 1 → Get fulfillment orders
-    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-      session,
-      order_id: numericOrderId,
-    });
+    let fulfillmentOrders;
+    try {
+      fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+        session,
+        order_id: numericOrderId,
+      });
+    } catch (err) {
+      console.error("FulfillmentOrder Fetch Error:", err);
+      return res.json({ success: false, error: err.message });
+    }
 
     if (!fulfillmentOrders.data.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found. Cannot create fulfillment.",
+        error: "No fulfillment orders found",
       });
     }
 
     const fulfillmentOrder = fulfillmentOrders.data[0];
 
-    // Build correct payload
     const payload = {
       tracking_info: {
         number: awbNumber,
-        company: "Others"
+        company: "Others",
       },
       notify_customer: false,
       line_items_by_fulfillment_order: [
@@ -632,11 +637,16 @@ app.post("/api/update-tracking", async (req, res) => {
       ],
     };
 
-    // STEP 2 → Create the fulfillment using correct body property
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
-    fulfillment.body = payload;  // <<< IMPORTANT FIX
+    fulfillment.body = payload;
 
-    const created = await fulfillment.save();
+    let created;
+    try {
+      created = await fulfillment.save();
+    } catch (err) {
+      console.error("Fulfillment Save Error:", err);
+      return res.json({ success: false, error: err.message });
+    }
 
     return res.json({
       success: true,
@@ -645,7 +655,7 @@ app.post("/api/update-tracking", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Tracking update error:", error);
+    console.error("Outer Error:", error);
     res.json({ success: false, error: error.message });
   }
 });
