@@ -564,8 +564,8 @@ app.post("/api/update-tracking", async (req, res) => {
 
     fulfillment.tracking_info = {
       company: "Others",
-      number: awbNumber,
-      url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
+      number: awbNumber
+      // url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
     };
 
     fulfillment.notify_customer = false;
