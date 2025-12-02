@@ -470,8 +470,7 @@ app.post("/api/update-tracking", async (req, res) => {
     // STEP 1: Get existing fulfillments
     const fnumber = await shopify.api.rest.Fulfillment.all({
       session,
-      order_id: numericOrderId,
-      trackingnumber:awbNumber
+      order_id: numericOrderId
     });
 
     console.log("Fulfillments returned:", fnumber.data);
