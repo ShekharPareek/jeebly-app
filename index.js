@@ -520,74 +520,6 @@ app.get("/api/orders/all", async (_req, res) => {
 // });
 
 // Update tracking using REST API usig fullfilament graph QL
-// app.post("/api/update-tracking", async (req, res) => {
-//   try {
-//     const session = res.locals.shopify.session;
-//     const { orderId, trackingNumber } = req.body;
-
-//     if (!orderId || !trackingNumber) {
-//       return res.json({ success: false, error: "Missing orderId or trackingNumber" });
-//     }
-
-//     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
-//     const awbNumber = trackingNumber;
-
-//     // STEP 1 → Get fulfillment orders
-//     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-//       session,
-//       order_id: numericOrderId,
-//     });
-
-//     if (!fulfillmentOrders.data.length) {
-//       return res.json({
-//         success: false,
-//         error: "No fulfillment orders found. Cannot create fulfillment.",
-//       });
-//     }
-
-//     const fulfillmentOrder = fulfillmentOrders.data[0];
-//     console.log("Fulfillment Order:", fulfillmentOrder);
-
-//     // Format required by Shopify
-//     const lineItemsByFulfillmentOrder = [
-//       {
-//         fulfillment_order_id: fulfillmentOrder.id,
-//         fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
-//           id: item.id,
-//           quantity: item.quantity,
-//         })),
-//       },
-//     ];
-
-//     // STEP 2 → Create fulfillment with tracking
-//     const fulfillment = new shopify.api.rest.Fulfillment({ session });
-
-//     fulfillment.tracking_info = {
-//       company: "Others",
-//       number: awbNumber
-//       // url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
-//     };
-
-//     fulfillment.notify_customer = false;
-//     fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
-
-//     const created = await fulfillment.save();
-
-//     console.log("Fulfillment Created:", created);
-
-//     return res.json({
-//       success: true,
-//       message: "Tracking number updated successfully",
-//       data: created,
-//     });
-
-//   } catch (error) {
-//     console.error("Tracking update error:", error);
-//     res.json({ success: false, error: error.message });
-//   }
-// });
-
-
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -600,53 +532,48 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
     const awbNumber = trackingNumber;
 
-    let fulfillmentOrders;
-    try {
-      fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-        session,
-        order_id: numericOrderId,
-      });
-    } catch (err) {
-      console.error("FulfillmentOrder Fetch Error:", err);
-      return res.json({ success: false, error: err.message });
-    }
+    // STEP 1 → Get fulfillment orders
+    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+      session,
+      order_id: numericOrderId,
+    });
 
     if (!fulfillmentOrders.data.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found",
+        error: "No fulfillment orders found. Cannot create fulfillment.",
       });
     }
 
     const fulfillmentOrder = fulfillmentOrders.data[0];
+    console.log("Fulfillment Order:", fulfillmentOrder);
 
-    const payload = {
-      tracking_info: {
-        number: awbNumber,
-        company: "Others",
+    // Format required by Shopify
+    const lineItemsByFulfillmentOrder = [
+      {
+        fulfillment_order_id: fulfillmentOrder.id,
+        fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+        })),
       },
-      notify_customer: false,
-      line_items_by_fulfillment_order: [
-        {
-          fulfillment_order_id: fulfillmentOrder.id,
-          fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
-            id: item.id,
-            quantity: item.quantity,
-          })),
-        },
-      ],
+    ];
+
+    // STEP 2 → Create fulfillment with tracking
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
+    fulfillment.tracking_info = {
+      company: "Others",
+      number: awbNumber
+      // url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
     };
 
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
-    fulfillment.body = payload;
+    fulfillment.notify_customer = false;
+    fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
 
-    let created;
-    try {
-      created = await fulfillment.save();
-    } catch (err) {
-      console.error("Fulfillment Save Error:", err);
-      return res.json({ success: false, error: err.message });
-    }
+    const created = await fulfillment.save();
+
+    console.log("Fulfillment Created:", created);
 
     return res.json({
       success: true,
@@ -655,12 +582,10 @@ app.post("/api/update-tracking", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Outer Error:", error);
+    console.error("Tracking update error:", error);
     res.json({ success: false, error: error.message });
   }
 });
-
-
 
 
 app.use(shopify.cspHeaders());
