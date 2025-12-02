@@ -599,30 +599,48 @@ app.post("/api/update-tracking", async (req, res) => {
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
     const awbNumber = trackingNumber;
 
-    console.log("Updating tracking for order:", numericOrderId, "AWB:", awbNumber);
+    // STEP 1 → Get fulfillment orders
+    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+      session,
+      order_id: numericOrderId,
+    });
 
-    // -------------------------------
-    // STEP → Create fulfillment safely
-    // -------------------------------
-    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    if (!fulfillmentOrders.data.length) {
+      return res.json({
+        success: false,
+        error: "No fulfillment orders found. Cannot create fulfillment.",
+      });
+    }
 
-    fulfillment.order_id = numericOrderId;
-    fulfillment.notify_customer = false;
+    const fulfillmentOrder = fulfillmentOrders.data[0];
 
-    fulfillment.tracking_info = {
-      number: awbNumber,
-      company: "Others",
-      url: `https://track.aftership.com/${awbNumber}`
+    // Build correct payload
+    const payload = {
+      tracking_info: {
+        number: awbNumber,
+        company: "Others"
+      },
+      notify_customer: false,
+      line_items_by_fulfillment_order: [
+        {
+          fulfillment_order_id: fulfillmentOrder.id,
+          fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+          })),
+        },
+      ],
     };
 
-    // This will auto-attach available line items
-    const created = await fulfillment.save({});
+    // STEP 2 → Create the fulfillment using correct body property
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.body = payload;  // <<< IMPORTANT FIX
 
-    console.log("Fulfillment created:", created);
+    const created = await fulfillment.save();
 
     return res.json({
       success: true,
-      message: "Tracking number added successfully",
+      message: "Tracking number updated successfully",
       data: created,
     });
 
@@ -631,6 +649,7 @@ app.post("/api/update-tracking", async (req, res) => {
     res.json({ success: false, error: error.message });
   }
 });
+
 
 
 
