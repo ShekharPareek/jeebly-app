@@ -588,7 +588,6 @@ app.get("/api/orders/all", async (_req, res) => {
 //   }
 // });
 
-
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -616,16 +615,17 @@ app.post("/api/update-tracking", async (req, res) => {
 
     const fulfillmentId = fulfillments.data[0].id;
 
-    // STEP 2 → Update the tracking number
-    const updated = await shopify.api.rest.Fulfillment.update({
-      session,
-      id: fulfillmentId,
-      tracking_info: {
-        number: awbNumber,
-        company: "Others",
-      },
-      notify_customer: false,
-    });
+    // STEP 2 → Update the tracking number (correct method)
+    const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
+    fulfillment.id = fulfillmentId;
+    fulfillment.tracking_info = {
+      number: awbNumber,
+      company: "Others",
+    };
+    fulfillment.notify_customer = false;
+
+    const updated = await fulfillment.save();
 
     return res.json({
       success: true,
