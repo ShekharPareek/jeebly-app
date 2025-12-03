@@ -552,6 +552,7 @@ app.post("/api/update-tracking", async (req, res) => {
     const lineItemsByFulfillmentOrder = [
       {
         fulfillment_order_id: fulfillmentOrder.id,
+        customer: false,
         fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
           id: item.id
           // quantity: item.quantity,
