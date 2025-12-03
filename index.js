@@ -588,58 +588,58 @@ app.get("/api/orders/all", async (_req, res) => {
 //   }
 // });
 
+// Update Tracking API
 app.post("/api/update-tracking", async (req, res) => {
   try {
-    const session = res.locals.shopify.session;
     const { orderId, trackingNumber } = req.body;
 
-    if (!orderId || !trackingNumber) {
-      return res.json({ success: false, error: "Missing orderId or trackingNumber" });
-    }
+    const session = res.locals.shopify.session;
 
-    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
-    const awbNumber = trackingNumber;
-
-    // STEP 1 → Fetch existing fulfillment
-    const fulfillments = await shopify.api.rest.Fulfillment.all({
+    // 1️⃣ Get the fulfillment order for the order
+    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
       session,
-      order_id: numericOrderId,
+      order_id: orderId,
     });
 
-    if (!fulfillments.data.length) {
-      return res.json({
-        success: false,
-        error: "This order has no fulfillment to update.",
-      });
+    if (!fulfillmentOrders || fulfillmentOrders.data.length === 0) {
+      return res.status(404).json({ error: "No fulfillment orders found" });
     }
 
-    const fulfillmentId = fulfillments.data[0].id;
+    const fulfillmentOrder = fulfillmentOrders.data[0];
 
-    // STEP 2 → Update the tracking number
+    // 2️⃣ Extract fulfillment ID from fulfillment order
+    if (
+      !fulfillmentOrder.fulfillments ||
+      fulfillmentOrder.fulfillments.length === 0
+    ) {
+      return res.status(404).json({ error: "No fulfillments found for this order" });
+    }
+
+    const fulfillmentId = fulfillmentOrder.fulfillments[0].id;
+    const parentOrderId = fulfillmentOrder.order_id;
+
+    // 3️⃣ Update tracking information
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
-    fulfillment.id = fulfillmentId;
-    fulfillment.order_id = numericOrderId;   // REQUIRED
-    fulfillment.tracking_info = {
-      number: awbNumber,
-      company: "Others",
-    };
-    fulfillment.notify_customer = false;
+    fulfillment.id = fulfillmentId;          // REQUIRED
+    fulfillment.order_id = parentOrderId;    // REQUIRED
+    fulfillment.tracking_number = trackingNumber;
+    fulfillment.tracking_company = "Jeebly";
+    fulfillment.notify_customer = false;     // Optional
 
-    const updated = await fulfillment.save();
+    const response = await fulfillment.save();
 
-    return res.json({
+    res.json({
       success: true,
-      message: "Tracking number updated successfully",
-      data: updated,
+      message: "Tracking updated successfully",
+      response,
     });
 
   } catch (error) {
     console.error("Tracking update error:", error);
-    res.json({ success: false, error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
-
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
