@@ -628,10 +628,15 @@ app.post("/api/update-tracking", async (req, res) => {
           fulfillment_order_id: fulfillmentOrder.id,
           fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
             id: item.id,
-            requested_quantity: item.quantity,
+            requested_quantity:
+              item.quantity_to_fulfill ||
+              item.fulfillable_quantity ||
+              item.quantity || // fallback
+              1                 // final fallback
           })),
         },
       ];
+      
 
       const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
