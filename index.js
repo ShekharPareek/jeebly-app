@@ -609,23 +609,49 @@ app.post("/api/update-tracking", async (req, res) => {
     if (!fulfillmentOrders.data.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found for this order.",
+        error: "No fulfillment orders found.",
       });
     }
 
     const fulfillmentOrder = fulfillmentOrders.data[0];
 
-    if (!fulfillmentOrder.fulfillments || !fulfillmentOrder.fulfillments.length) {
-      return res.json({
-        success: false,
-        error: "No fulfillment found. You must create first fulfillment before updating tracking.",
-      });
+    let fulfillmentId = null;
+
+    //--------------------------------------------------------------------
+    // STEP 2 → If no fulfillment exists, create the first fulfillment
+    //--------------------------------------------------------------------
+    if (!fulfillmentOrder.fulfillments || fulfillmentOrder.fulfillments.length === 0) {
+      console.log("➜ Creating first fulfillment...");
+
+      const lineItemsByFulfillmentOrder = [
+        {
+          fulfillment_order_id: fulfillmentOrder.id,
+          fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
+            id: item.id,
+            requested_quantity: item.quantity,
+          })),
+        },
+      ];
+
+      const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
+      fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
+      fulfillment.notify_customer = false;
+
+      const createdFulfillment = await fulfillment.save();
+
+      fulfillmentId = createdFulfillment.id;
+      console.log("Fulfillment Created:", createdFulfillment);
+
+    } else {
+      // Otherwise use existing fulfillment
+      fulfillmentId = fulfillmentOrder.fulfillments[0].id;
+      console.log("Using existing fulfillment:", fulfillmentId);
     }
 
-    // We need fulfillment ID (not fulfillment order ID)
-    const fulfillmentId = fulfillmentOrder.fulfillments[0].id;
-
-    // STEP 2 → Update tracking via GraphQL API
+    //--------------------------------------------------------------------
+    // STEP 3 → Update tracking (GraphQL)
+    //--------------------------------------------------------------------
     const client = new shopify.clients.Graphql({ session });
 
     const gqlResponse = await client.query({
@@ -685,6 +711,7 @@ app.post("/api/update-tracking", async (req, res) => {
     res.json({ success: false, error: error.message });
   }
 });
+
 
 
 app.use(shopify.cspHeaders());
