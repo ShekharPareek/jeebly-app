@@ -555,7 +555,7 @@ app.post("/api/update-tracking", async (req, res) => {
         customer: false,
         fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
           id: item.id,
-          quantity: item.quantity,
+          quantity: item.fulfillable_quantity,
         })),
       },
     ];
