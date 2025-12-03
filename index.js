@@ -518,7 +518,6 @@ app.get("/api/orders/all", async (_req, res) => {
 //     });
 //   }
 // });
-
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
@@ -545,22 +544,35 @@ app.post("/api/update-tracking", async (req, res) => {
     // STEP 2: Update tracking info
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
     fulfillment.id = fulfillmentId;
-    // fulfillment.tracking_info = {
-    //   number: trackingNumber,
-    //   company: "Others",
-    //   url: `https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=${trackingNumber}`,
-    // };
-    await fulfillment.update_tracking({
-      body: {"fulfillment": {"notify_customer":false, "tracking_info": {"company": "others", "number":`${trackingNumber}`}}},
+
+    const updateResponse = await fulfillment.update_tracking({
+      body: {
+        fulfillment: {
+          notify_customer: false,
+          tracking_info: {
+            company: "Others",
+            number: trackingNumber,
+          },
+        },
+      },
     });
-   
 
-    const response = await fulfillment.save(); // this updates the fulfillment
+    // STEP 3: Send success message if status 200
+    if (updateResponse && updateResponse.status === 200) {
+      return res.json({
+        success: true,
+        message: `Tracking number ${trackingNumber} updated successfully!`,
+        data: updateResponse,
+      });
+    }
 
+    // fallback for unexpected status
     return res.json({
-      success: true,
-      data: response,
+      success: false,
+      error: "Tracking update did not return status 200",
+      data: updateResponse,
     });
+
   } catch (error) {
     console.error("Tracking update error:", error);
     res.json({
