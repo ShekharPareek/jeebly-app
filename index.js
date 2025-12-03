@@ -545,12 +545,15 @@ app.post("/api/update-tracking", async (req, res) => {
     // STEP 2: Update tracking info
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
     fulfillment.id = fulfillmentId;
-    fulfillment.tracking_info = {
-      number: trackingNumber,
-      company: "Others",
-      url: `https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=${trackingNumber}`,
-    };
-    fulfillment.notify_customer = false;
+    // fulfillment.tracking_info = {
+    //   number: trackingNumber,
+    //   company: "Others",
+    //   url: `https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=${trackingNumber}`,
+    // };
+    await fulfillment.update_tracking({
+      body: {"fulfillment": {"notify_customer":false, "tracking_info": {"company": "others", "number":`${trackingNumber}`}}},
+    });
+   
 
     const response = await fulfillment.save(); // this updates the fulfillment
 
