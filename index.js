@@ -615,10 +615,11 @@ app.post("/api/update-tracking", async (req, res) => {
 
     const fulfillmentId = fulfillments.data[0].id;
 
-    // STEP 2 → Update the tracking number (correct method)
+    // STEP 2 → Update the tracking number
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
 
     fulfillment.id = fulfillmentId;
+    fulfillment.order_id = numericOrderId;   // REQUIRED
     fulfillment.tracking_info = {
       number: awbNumber,
       company: "Others",
