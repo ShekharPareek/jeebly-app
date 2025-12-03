@@ -455,137 +455,137 @@ app.get("/api/orders/all", async (_req, res) => {
 // tracking number update
 // UPDATE TRACKING USING REST API
 // Update tracking using REST API
-// app.post("/api/update-tracking", async (req, res) => {
-//   try {
-//     const session = res.locals.shopify.session;
-//     const { orderId } = req.body;
-//     const {trackingNumber} = req.body;
-
-//     if (!orderId) {
-//       return res.json({ success: false, error: "Missing orderId" });
-//     }
-
-//     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
-//     const awbNumber = trackingNumber;
-
-//     // STEP 1: Get existing fulfillments
-//     const fnumber = await shopify.api.rest.Fulfillment.all({
-//       session,
-//       order_id: numericOrderId
-//     });
-
-//     console.log("Fulfillments returned:", fnumber.data);
-
-//     if (!fnumber.data.length) {
-//       return res.json({
-//         success: false,
-//         error: "No existing fulfillments found.",
-//       });
-//     }
-
-//     const fulfillmentId = fnumber.data[0].id;
-//     console.log("Using fulfillmentId:", fulfillmentId);
-
-//     // STEP 2: Update tracking
-//     const fulfillment = new shopify.api.rest.Fulfillment({ session });
-//     fulfillment.id = fulfillmentId;
-
-//     await fulfillment.update_tracking({
-//       body: {
-//         fulfillment: {
-//           notify_customer: false,
-//           tracking_info: {
-//             company: "Others",
-//             number: awbNumber,
-//             tracking_url:
-//               "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
-//           },
-//         },
-//       },
-//     });
-
-//     const response = await fulfillment.save({ update: true });
-
-//     return res.json({
-//       success: true,
-//       data: response,
-//     });
-//   } catch (error) {
-//     console.error("Tracking update error:", error);
-//     res.json({
-//       success: false,
-//       error: error.message,
-//     });
-//   }
-// });
-
-// Update tracking using REST API usig fullfilament graph QL
 app.post("/api/update-tracking", async (req, res) => {
   try {
     const session = res.locals.shopify.session;
-    const { orderId, trackingNumber } = req.body;
+    const { orderId } = req.body;
+    const {trackingNumber} = req.body;
 
-    if (!orderId || !trackingNumber) {
-      return res.json({ success: false, error: "Missing orderId or trackingNumber" });
+    if (!orderId) {
+      return res.json({ success: false, error: "Missing orderId" });
     }
 
     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
     const awbNumber = trackingNumber;
 
-    // STEP 1 → Get fulfillment orders
-    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+    // STEP 1: Get existing fulfillments
+    const fnumber = await shopify.api.rest.Fulfillment.all({
       session,
-      order_id: numericOrderId,
+      order_id: numericOrderId
     });
 
-    if (!fulfillmentOrders.data.length) {
+    console.log("Fulfillments returned:", fnumber.data);
+
+    if (!fnumber.data.length) {
       return res.json({
         success: false,
-        error: "No fulfillment orders found. Cannot create fulfillment.",
+        error: "No existing fulfillments found.",
       });
     }
 
-    const fulfillmentOrder = fulfillmentOrders.data[0];
-    console.log("Fulfillment Order:", fulfillmentOrder);
+    const fulfillmentId = fnumber.data[0].id;
+    console.log("Using fulfillmentId:", fulfillmentId);
 
-    // Format required by Shopify
-    const lineItemsByFulfillmentOrder = [
-      {
-        fulfillment_order_id: fulfillmentOrder.id,
-        fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
-          id: item.id
-          // quantity: item.quantity,
-        })),
-      },
-    ];
-
-    // STEP 2 → Create fulfillment with tracking
+    // STEP 2: Update tracking
     const fulfillment = new shopify.api.rest.Fulfillment({ session });
+    fulfillment.id = fulfillmentId;
 
-    fulfillment.tracking_info = {
-      company: "Others",
-      number: awbNumber
-      // url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
-    };
+    await fulfillment.update_tracking({
+      body: {
+        fulfillment: {
+          notify_customer: false,
+          tracking_info: {
+            company: "Others",
+            number: awbNumber,
+            tracking_url:
+              "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=1Z1234512345123456",
+          },
+        },
+      },
+    });
 
-    fulfillment.notify_customer = false;
-    fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
-
-    const created = await fulfillment.save();
-
-    console.log("Fulfillment Created:", created);
+    const response = await fulfillment.save({ update: true });
 
     return res.json({
       success: true,
-      message: "Tracking number updated successfully",
-      data: created,
+      data: response,
     });
-
   } catch (error) {
     console.error("Tracking update error:", error);
-    res.json({ success: false, error: error.message });
+    res.json({
+      success: false,
+      error: error.message,
+    });
   }
 });
+
+// Update tracking using REST API usig fullfilament graph QL
+// app.post("/api/update-tracking", async (req, res) => {
+//   try {
+//     const session = res.locals.shopify.session;
+//     const { orderId, trackingNumber } = req.body;
+
+//     if (!orderId || !trackingNumber) {
+//       return res.json({ success: false, error: "Missing orderId or trackingNumber" });
+//     }
+
+//     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+//     const awbNumber = trackingNumber;
+
+//     // STEP 1 → Get fulfillment orders
+//     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+//       session,
+//       order_id: numericOrderId,
+//     });
+
+//     if (!fulfillmentOrders.data.length) {
+//       return res.json({
+//         success: false,
+//         error: "No fulfillment orders found. Cannot create fulfillment.",
+//       });
+//     }
+
+//     const fulfillmentOrder = fulfillmentOrders.data[0];
+//     console.log("Fulfillment Order:", fulfillmentOrder);
+
+//     // Format required by Shopify
+//     const lineItemsByFulfillmentOrder = [
+//       {
+//         fulfillment_order_id: fulfillmentOrder.id,
+//         fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
+//           id: item.id
+//           // quantity: item.quantity,
+//         })),
+//       },
+//     ];
+
+//     // STEP 2 → Create fulfillment with tracking
+//     const fulfillment = new shopify.api.rest.Fulfillment({ session });
+
+//     fulfillment.tracking_info = {
+//       company: "Others",
+//       number: awbNumber
+//       // url: "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=" + awbNumber,
+//     };
+
+//     fulfillment.notify_customer = false;
+//     fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
+
+//     const created = await fulfillment.save();
+
+//     console.log("Fulfillment Created:", created);
+
+//     return res.json({
+//       success: true,
+//       message: "Tracking number updated successfully",
+//       data: created,
+//     });
+
+//   } catch (error) {
+//     console.error("Tracking update error:", error);
+//     res.json({ success: false, error: error.message });
+//   }
+// });
 
 
 app.use(shopify.cspHeaders());
