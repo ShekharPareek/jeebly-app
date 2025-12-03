@@ -553,8 +553,8 @@ app.post("/api/update-tracking", async (req, res) => {
       {
         fulfillment_order_id: fulfillmentOrder.id,
         fulfillment_order_line_items: fulfillmentOrder.line_items.map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
+          id: item.id
+          // quantity: item.quantity,
         })),
       },
     ];
