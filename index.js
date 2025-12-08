@@ -567,10 +567,10 @@ app.post("/api/update-tracking", async (req, res) => {
       });
 
       return res.json({
-        success: true,
-        message: "Tracking updated successfully",
-        data: updateResponse,
-      });
+              success: true,
+              error: "Tracking update did not return status 200",
+              data: updateResponse,
+            });
     }
 
     // --------------------------------------------------------------------
