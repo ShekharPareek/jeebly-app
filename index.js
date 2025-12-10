@@ -181,6 +181,7 @@ async function processWebhookData(payload, extractedShopId) {
   const codAmountToUse = paymentType === "Prepaid" ? 0.00 : codAmount;
   const pickupDate = getNextDayDate();
   const clientKey = extractedShopId;
+  const OrderId = payload.id;
 
   console.log("Extracted Data for Shipment:", {
     description,
@@ -197,7 +198,8 @@ async function processWebhookData(payload, extractedShopId) {
     orderNumber,
     getConfigure,
     clientKey,
-    timeZone
+    timeZone,
+    OrderId
   });
 
   // Call the createShipment function with the extracted data
@@ -532,7 +534,7 @@ app.post("/api/update-tracking", async (req, res) => {
     });
 
     if (!fulfillmentOrders.data.length) {
-      return res.json({ success: false, error: "No Fulfillment Orders found." });
+      return res.json({ success: false, error: "No Fulfillment Orders found."});
     }
 
     const fulfillmentOrder = fulfillmentOrders.data[0];
@@ -610,166 +612,89 @@ app.post("/api/update-tracking", async (req, res) => {
 });
 
 
+// Update Tracking using Automation webhook Shipment create
 
-// Update tracking using REST API usig fullfilament graph QL
-// app.post("/api/update-tracking", async (req, res) => {
+// async function updateTrackingDirect(session, orderId, trackingNumber) {
 //   try {
-//     const session = res.locals.shopify.session;
-//     const { fulfillmentId, trackingNumber } = req.body;
-
-//     if (!fulfillmentId || !trackingNumber) {
-//       return res.json({ success: false, error: "Missing fulfillmentId or trackingNumber" });
-//     }
-
-//     // Load the existing fulfillment
-//     const fulfillment = new shopify.rest.Fulfillment({ session });
-//     fulfillment.id = fulfillmentId; // Existing fulfillment ID
-
-//     // Update tracking info
-//     await fulfillment.update_tracking({
-//       body: {
-//         fulfillment: {
-//           tracking_info: {
-//             number: trackingNumber,
-//             company: "Others",
-//             // url: "https://www.my-shipping-company.com?tracking_number=" + trackingNumber
-//           },
-//           notify_customer: false
-//         }
-//       }
-//     });
-
-//     return res.json({
-//       success: true,
-//       message: "Tracking number updated successfully",
-//     });
-
-//   } catch (error) {
-//     console.error("Tracking update error:", error);
-//     res.json({ success: false, error: error.message });
-//   }
-// });
-
-// Update Tracking API
-// app.post("/api/update-tracking", async (req, res) => {
-//   try {
-//     const session = res.locals.shopify.session;
-//     const { orderId, trackingNumber } = req.body;
-
-//     if (!orderId || !trackingNumber) {
-//       return res.json({ success: false, error: "Missing orderId or trackingNumber" });
-//     }
-
 //     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
-//     const awbNumber = trackingNumber;
 
-//     // STEP 1 → Get fulfillment orders
+//     // STEP 1: Get Fulfillment Orders
 //     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
 //       session,
 //       order_id: numericOrderId,
 //     });
 
 //     if (!fulfillmentOrders.data.length) {
-//       return res.json({
-//         success: false,
-//         error: "No fulfillment orders found.",
-//       });
+//       console.log("No Fulfillment Orders found.");
+//       return { success: false, error: "No fulfillment orders found" };
 //     }
 
 //     const fulfillmentOrder = fulfillmentOrders.data[0];
 
-//     let fulfillmentId = null;
+//     // STEP 2: Check if a Fulfillment already exists
+//     const fulfillments = await shopify.api.rest.Fulfillment.all({
+//       session,
+//       order_id: numericOrderId,
+//     });
 
-//     //--------------------------------------------------------------------
-//     // STEP 2 → If no fulfillment exists, create the first fulfillment
-//     //--------------------------------------------------------------------
-//     if (!fulfillmentOrder.fulfillments || fulfillmentOrder.fulfillments.length === 0) {
-//       console.log("➜ Creating first fulfillment...");
-
-//       const lineItemsByFulfillmentOrder = [
-//         {
-//           fulfillment_order_id: fulfillmentOrder.id
-//         },
-//       ];
+//     // -------------------------------
+//     // CASE A — Fulfillment exists → UPDATE tracking
+//     // -------------------------------
+//     if (fulfillments.data.length > 0) {
+//       const fulfillmentId = fulfillments.data[0].id;
 
 //       const fulfillment = new shopify.api.rest.Fulfillment({ session });
+//       fulfillment.id = fulfillmentId;
 
-//       fulfillment.line_items_by_fulfillment_order = lineItemsByFulfillmentOrder;
-//       fulfillment.notify_customer = false;
+//       const updateResponse = await fulfillment.update_tracking({
+//         body: {
+//           fulfillment: {
+//             notify_customer: false,
+//             tracking_info: {
+//               number: trackingNumber,
+//               company: "Others",
+//             },
+//           },
+//         },
+//       });
 
-//       const createdFulfillment = await fulfillment.save();
-
-//       fulfillmentId = createdFulfillment.id;
-//       console.log("Fulfillment Created:", createdFulfillment);
-
-//     } else {
-//       // Otherwise use existing fulfillment
-//       fulfillmentId = fulfillmentOrder.fulfillments[0].id;
-//       console.log("Using existing fulfillment:", fulfillmentId);
+//       return {
+//         success: true,
+//         message: "Tracking updated successfully",
+//         data: updateResponse,
+//       };
 //     }
 
-//     //--------------------------------------------------------------------
-//     // STEP 3 → Update tracking (GraphQL)
-//     //--------------------------------------------------------------------
-//     const client = new shopify.clients.Graphql({ session });
+//     // -------------------------------
+//     // CASE B — No fulfillment exists → CREATE new fulfillment
+//     // -------------------------------
+//     const createFulfillment = new shopify.api.rest.Fulfillment({ session });
 
-//     const gqlResponse = await client.query({
-//       data: {
-//         query: `
-//           mutation FulfillmentTrackingInfoUpdate(
-//             $fulfillmentId: ID!,
-//             $trackingInfoInput: FulfillmentTrackingInput!,
-//             $notifyCustomer: Boolean
-//           ) {
-//             fulfillmentTrackingInfoUpdate(
-//               fulfillmentId: $fulfillmentId,
-//               trackingInfoInput: $trackingInfoInput,
-//               notifyCustomer: $notifyCustomer
-//             ) {
-//               fulfillment {
-//                 id
-//                 status
-//                 trackingInfo {
-//                   company
-//                   number
-//                   url
-//                 }
-//               }
-//               userErrors {
-//                 field
-//                 message
-//               }
-//             }
-//           }
-//         `,
-//         variables: {
-//           fulfillmentId,
-//           notifyCustomer: false,
-//           trackingInfoInput: {
-//             company: "Jeebly",
-//             number: awbNumber,
-//           }
-//         }
-//       }
+//     createFulfillment.line_items_by_fulfillment_order = [
+//       { fulfillment_order_id: fulfillmentOrder.id }
+//     ];
+
+//     createFulfillment.tracking_info = {
+//       number: trackingNumber,
+//       company: "Others",
+//       url: `https://www.my-shipping-company.com?tracking_number=${trackingNumber}`,
+//     };
+
+//     const newFulfillmentResponse = await createFulfillment.save({
+//       update: true,
 //     });
 
-//     const result = gqlResponse.body.data.fulfillmentTrackingInfoUpdate;
-
-//     if (result.userErrors.length) {
-//       return res.json({ success: false, error: result.userErrors[0].message });
-//     }
-
-//     return res.json({
+//     return {
 //       success: true,
-//       message: "Tracking updated successfully!",
-//       data: result.fulfillment,
-//     });
+//       message: "New fulfillment created & tracking added",
+//       data: newFulfillmentResponse,
+//     };
 
 //   } catch (error) {
-//     console.error("Tracking update error:", error);
-//     res.json({ success: false, error: error.message });
+//     console.error("updateTrackingDirect Error:", error);
+//     return { success: false, error: error.message };
 //   }
-// });
+// }
 
 
 
