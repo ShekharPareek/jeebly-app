@@ -541,6 +541,7 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId or trackingNumber" });
     }
 
+    
     const numericOrderId = Number(orderId);
     // --------------------------------------------------------------------
     // STEP 1: Get fulfillment orders (IMPORTANT: new API!)
@@ -633,7 +634,7 @@ app.post("/api/update-tracking", async (req, res) => {
 
 async function updateTrackingDirect(orderId, trackingNumber) {
   try {
-    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+    const numericOrderId = Number(orderId);
     const session = res.locals.shopify.session;
     // STEP 1: Get Fulfillment Orders
     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
