@@ -307,7 +307,25 @@ async function processWebhookData(payload, extractedShopId) {
 
       if (response.ok) {
         console.log("Shipment created successfully:", responseBody);
-      } else {
+       // === Extract tracking / AWB number ===
+       const trackingNumber = responseBody["AWB No"];
+
+          if (!trackingNumber) {
+            console.error("No AWB / Tracking Number found in API response.");
+            return;
+          }
+
+            console.log("Calling Shopify tracking update with:", {
+              orderId: OrderId,
+              trackingNumber
+            });
+            // === Call backend tracking update ===
+            const result = await updateTrackingDirect(OrderId, trackingNumber);
+
+                console.log("Tracking update result:", result);
+            }
+      
+      else {
         console.error("Failed to create shipment:", responseBody);
       }
     } catch (error) {
@@ -614,87 +632,87 @@ app.post("/api/update-tracking", async (req, res) => {
 
 // Update Tracking using Automation webhook Shipment create
 
-// async function updateTrackingDirect(session, orderId, trackingNumber) {
-//   try {
-//     const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+async function updateTrackingDirect(orderId, trackingNumber) {
+  try {
+    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
+    const session = res.locals.shopify.session;
+    // STEP 1: Get Fulfillment Orders
+    const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
+      session,
+      order_id: numericOrderId,
+    });
 
-//     // STEP 1: Get Fulfillment Orders
-//     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-//       session,
-//       order_id: numericOrderId,
-//     });
+    if (!fulfillmentOrders.data.length) {
+      console.log("No Fulfillment Orders found.");
+      return { success: false, error: "No fulfillment orders found" };
+    }
 
-//     if (!fulfillmentOrders.data.length) {
-//       console.log("No Fulfillment Orders found.");
-//       return { success: false, error: "No fulfillment orders found" };
-//     }
+    const fulfillmentOrder = fulfillmentOrders.data[0];
 
-//     const fulfillmentOrder = fulfillmentOrders.data[0];
+    // STEP 2: Check if a Fulfillment already exists
+    const fulfillments = await shopify.api.rest.Fulfillment.all({
+      session,
+      order_id: numericOrderId,
+    });
 
-//     // STEP 2: Check if a Fulfillment already exists
-//     const fulfillments = await shopify.api.rest.Fulfillment.all({
-//       session,
-//       order_id: numericOrderId,
-//     });
+    // -------------------------------
+    // CASE A — Fulfillment exists → UPDATE tracking
+    // -------------------------------
+    if (fulfillments.data.length > 0) {
+      const fulfillmentId = fulfillments.data[0].id;
 
-//     // -------------------------------
-//     // CASE A — Fulfillment exists → UPDATE tracking
-//     // -------------------------------
-//     if (fulfillments.data.length > 0) {
-//       const fulfillmentId = fulfillments.data[0].id;
+      const fulfillment = new shopify.api.rest.Fulfillment({ session });
+      fulfillment.id = fulfillmentId;
 
-//       const fulfillment = new shopify.api.rest.Fulfillment({ session });
-//       fulfillment.id = fulfillmentId;
+      const updateResponse = await fulfillment.update_tracking({
+        body: {
+          fulfillment: {
+            notify_customer: false,
+            tracking_info: {
+              number: trackingNumber,
+              company: "Others",
+            },
+          },
+        },
+      });
 
-//       const updateResponse = await fulfillment.update_tracking({
-//         body: {
-//           fulfillment: {
-//             notify_customer: false,
-//             tracking_info: {
-//               number: trackingNumber,
-//               company: "Others",
-//             },
-//           },
-//         },
-//       });
+      return {
+        success: true,
+        message: "Tracking updated successfully",
+        data: updateResponse,
+      };
+    }
 
-//       return {
-//         success: true,
-//         message: "Tracking updated successfully",
-//         data: updateResponse,
-//       };
-//     }
+    // -------------------------------
+    // CASE B — No fulfillment exists → CREATE new fulfillment
+    // -------------------------------
+    const createFulfillment = new shopify.api.rest.Fulfillment({ session });
 
-//     // -------------------------------
-//     // CASE B — No fulfillment exists → CREATE new fulfillment
-//     // -------------------------------
-//     const createFulfillment = new shopify.api.rest.Fulfillment({ session });
+    createFulfillment.line_items_by_fulfillment_order = [
+      { fulfillment_order_id: fulfillmentOrder.id }
+    ];
 
-//     createFulfillment.line_items_by_fulfillment_order = [
-//       { fulfillment_order_id: fulfillmentOrder.id }
-//     ];
+    createFulfillment.tracking_info = {
+      number: trackingNumber,
+      company: "Others",
+      url: `https://www.my-shipping-company.com?tracking_number=${trackingNumber}`,
+    };
 
-//     createFulfillment.tracking_info = {
-//       number: trackingNumber,
-//       company: "Others",
-//       url: `https://www.my-shipping-company.com?tracking_number=${trackingNumber}`,
-//     };
+    const newFulfillmentResponse = await createFulfillment.save({
+      update: true,
+    });
 
-//     const newFulfillmentResponse = await createFulfillment.save({
-//       update: true,
-//     });
+    return {
+      success: true,
+      message: "New fulfillment created & tracking added",
+      data: newFulfillmentResponse,
+    };
 
-//     return {
-//       success: true,
-//       message: "New fulfillment created & tracking added",
-//       data: newFulfillmentResponse,
-//     };
-
-//   } catch (error) {
-//     console.error("updateTrackingDirect Error:", error);
-//     return { success: false, error: error.message };
-//   }
-// }
+  } catch (error) {
+    console.error("updateTrackingDirect Error:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 
 
