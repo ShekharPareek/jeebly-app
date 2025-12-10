@@ -541,8 +541,7 @@ app.post("/api/update-tracking", async (req, res) => {
       return res.json({ success: false, error: "Missing orderId or trackingNumber" });
     }
 
-    const numericOrderId = orderId.replace("gid://shopify/Order/", "");
-
+    const numericOrderId = Number(orderId);
     // --------------------------------------------------------------------
     // STEP 1: Get fulfillment orders (IMPORTANT: new API!)
     // --------------------------------------------------------------------
