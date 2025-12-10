@@ -320,7 +320,7 @@ async function processWebhookData(payload, extractedShopId) {
               trackingNumber
             });
             // === Call backend tracking update ===
-            const result = await updateTrackingDirect(OrderId, trackingNumber);
+            const result = await updateTrackingDirect(session,OrderId, trackingNumber);
 
                 console.log("Tracking update result:", result);
             }
@@ -632,10 +632,9 @@ app.post("/api/update-tracking", async (req, res) => {
 
 // Update Tracking using Automation webhook Shipment create
 
-async function updateTrackingDirect(orderId, trackingNumber) {
+async function updateTrackingDirect(session,orderId, trackingNumber) {
   try {
     const numericOrderId = Number(orderId);
-    const session = res.locals.shopify.session;
     // STEP 1: Get Fulfillment Orders
     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
       session,
