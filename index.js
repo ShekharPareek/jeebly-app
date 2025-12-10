@@ -319,6 +319,17 @@ async function processWebhookData(payload, extractedShopId) {
               orderId: OrderId,
               trackingNumber
             });
+
+            const shopDomain = payload.domain || payload.store_domain || shop;
+
+            const session = await shopify.sessionStorage.loadSession(
+              `offline_${shopDomain}`
+            );
+
+            if (!session) {
+              console.error("Unable to load Shopify session for", shopDomain);
+              return;
+            }
             // === Call backend tracking update ===
             const result = await updateTrackingDirect(session,OrderId, trackingNumber);
 
