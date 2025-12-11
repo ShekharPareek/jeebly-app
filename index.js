@@ -321,100 +321,10 @@ async function processWebhookData(payload, extractedShopId) {
             });
 
            
-            try {
-             
-              // const { orderId, trackingNumber } = req.body;
-          
-              if (!OrderId || !trackingNumber) {
-              return res.json({ success: false, error: "Missing orderId or trackingNumber" });
-              }
-          
-              
-              const numericOrderId = Number(OrderId);
-              // --------------------------------------------------------------------
-              // STEP 1: Get fulfillment orders (IMPORTANT: new API!)
-              // --------------------------------------------------------------------
-              const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-                session,
-                order_id: numericOrderId,
-              });
-          
-              if (!fulfillmentOrders.data.length) {
-                return res.json({ success: false, error: "No Fulfillment Orders found."});
-              }
-          
-              const fulfillmentOrder = fulfillmentOrders.data[0];
-          
-              // --------------------------------------------------------------------
-              // STEP 2: Check if fulfillment already exists
-              // --------------------------------------------------------------------
-              const fulfillments = await shopify.api.rest.Fulfillment.all({
-                session,
-                order_id: numericOrderId,
-              });
-          
-              if (fulfillments.data.length > 0) {
-                // ================
-                // UPDATE TRACKING
-                // ================
-                const fulfillmentId = fulfillments.data[0].id;
-          
-                const fulfillment = new shopify.api.rest.Fulfillment({ session });
-                fulfillment.id = fulfillmentId;
-          
-                const updateResponse = await fulfillment.update_tracking({
-                  body: {
-                    fulfillment: {
-                      notify_customer: false,
-                      tracking_info: {
-                        number: trackingNumber,
-                        company: "Others",
-                      },
-                    },
-                  },
-                });
-          
-                return res.json({
-                        success: true,
-                        error: "Tracking update did not return status 200",
-                        data: updateResponse,
-                      });
-              }
-          
-              // --------------------------------------------------------------------
-              // STEP 3: NO fulfillment exists → CREATE new fulfillment
-              // --------------------------------------------------------------------
-              const createFulfillment = new shopify.api.rest.Fulfillment({ session });
-          
-              createFulfillment.line_items_by_fulfillment_order = [
-                {
-                  fulfillment_order_id: fulfillmentOrder.id, // REQUIRED
-                },
-              ];
-          
-              createFulfillment.tracking_info = {
-                number: trackingNumber,
-                company: "Others",
-                url: `https://www.my-shipping-company.com?tracking_number=${trackingNumber}`,
-              };
-          
-              const newFulfillmentResponse = await createFulfillment.save({
-                update: true,
-              });
-          
-              return res.json({
-                success: true,
-                message: "New fulfillment created & tracking added",
-                data: newFulfillmentResponse,
-              });
-          
-            } catch (error) {
-              console.error("Tracking update error:", error);
-              res.json({
-                success: false,
-                error: error.message,
-              });
-            }
+            // === Call backend tracking update ===
+            const result = await updateTrackingDirect(OrderId, trackingNumber);
+                console.log("Tracking update result:", result);
+                updateTrackingDirect(OrderId, trackingNumber);
             }
       
           else {
@@ -723,89 +633,26 @@ app.post("/api/update-tracking", async (req, res) => {
 
 
 // Update Tracking using Automation webhook Shipment create
+async function updateTrackingDirect(orderId, trackingNumber) {
+  try {
+    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: orderId,
+        trackingNumber: trackingNumber, // <-- use sh_s_reference_no
+      }),
+    });
 
-// async function updateTrackingDirect(session,orderId, trackingNumber) {
-//   try {
-//     const numericOrderId = Number(orderId);
-//     // STEP 1: Get Fulfillment Orders
-//     const fulfillmentOrders = await shopify.api.rest.FulfillmentOrder.all({
-//       session,
-//       order_id: numericOrderId,
-//     });
-
-//     if (!fulfillmentOrders.data.length) {
-//       console.log("No Fulfillment Orders found.");
-//       return { success: false, error: "No fulfillment orders found" };
-//     }
-
-//     const fulfillmentOrder = fulfillmentOrders.data[0];
-
-//     // STEP 2: Check if a Fulfillment already exists
-//     const fulfillments = await shopify.api.rest.Fulfillment.all({
-//       session,
-//       order_id: numericOrderId,
-//     });
-
-//     // -------------------------------
-//     // CASE A — Fulfillment exists → UPDATE tracking
-//     // -------------------------------
-//     if (fulfillments.data.length > 0) {
-//       const fulfillmentId = fulfillments.data[0].id;
-
-//       const fulfillment = new shopify.api.rest.Fulfillment({ session });
-//       fulfillment.id = fulfillmentId;
-
-//       const updateResponse = await fulfillment.update_tracking({
-//         body: {
-//           fulfillment: {
-//             notify_customer: false,
-//             tracking_info: {
-//               number: trackingNumber,
-//               company: "Others",
-//             },
-//           },
-//         },
-//       });
-
-//       return {
-//         success: true,
-//         message: "Tracking updated successfully",
-//         data: updateResponse,
-//       };
-//     }
-
-//     // -------------------------------
-//     // CASE B — No fulfillment exists → CREATE new fulfillment
-//     // -------------------------------
-//     const createFulfillment = new shopify.api.rest.Fulfillment({ session });
-
-//     createFulfillment.line_items_by_fulfillment_order = [
-//       { fulfillment_order_id: fulfillmentOrder.id }
-//     ];
-
-//     createFulfillment.tracking_info = {
-//       number: trackingNumber,
-//       company: "Others",
-//       url: `https://www.my-shipping-company.com?tracking_number=${trackingNumber}`,
-//     };
-
-//     const newFulfillmentResponse = await createFulfillment.save({
-//       update: true,
-//     });
-
-//     return {
-//       success: true,
-//       message: "New fulfillment created & tracking added",
-//       data: newFulfillmentResponse,
-//     };
-
-//   } catch (error) {
-//     console.error("updateTrackingDirect Error:", error);
-//     return { success: false, error: error.message };
-//   }
-// }
+    const updateData = await updateResponse.json();
+    console.log("Update Tracking Response:", updateData);
 
 
+  } catch (error) {
+    console.error("updateTrackingDirect fetch error:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
