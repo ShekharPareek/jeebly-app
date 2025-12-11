@@ -473,6 +473,27 @@ app.get("/api/orders/all", async (_req, res) => {
 });
 
 
+// Update Tracking using Automation webhook Shipment create
+async function updateTrackingDirect(orderId, trackingNumber) {
+  try {
+    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: orderId,
+        trackingNumber: trackingNumber, // <-- use sh_s_reference_no
+      }),
+    });
+
+    const updateData = await updateResponse.json();
+    console.log("Update Tracking Response:", updateData);
+
+
+  } catch (error) {
+    console.error("updateTrackingDirect fetch error:", error);
+    return { success: false, error: error.message };
+  }
+}
 // tracking number update
 // tracking number update
 // UPDATE TRACKING USING REST API
@@ -630,29 +651,6 @@ app.post("/api/update-tracking", async (req, res) => {
     });
   }
 });
-
-
-// Update Tracking using Automation webhook Shipment create
-async function updateTrackingDirect(orderId, trackingNumber) {
-  try {
-    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: orderId,
-        trackingNumber: trackingNumber, // <-- use sh_s_reference_no
-      }),
-    });
-
-    const updateData = await updateResponse.json();
-    console.log("Update Tracking Response:", updateData);
-
-
-  } catch (error) {
-    console.error("updateTrackingDirect fetch error:", error);
-    return { success: false, error: error.message };
-  }
-}
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
