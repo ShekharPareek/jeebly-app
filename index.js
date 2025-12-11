@@ -322,7 +322,7 @@ async function processWebhookData(payload, extractedShopId) {
 
            
             try {
-              const session = res.locals.shopify.session;
+             
               // const { orderId, trackingNumber } = req.body;
           
               if (!OrderId || !trackingNumber) {
