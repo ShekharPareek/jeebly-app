@@ -715,10 +715,9 @@ app.post("/api/update-tracking", async (req, res) => {
 //   }
 // }
 
-
 async function updateTrackingDirect(orderId, trackingNumber) {
   try {
-    const response = await fetch("/api/update-tracking", {
+    const response = await fetch("https://demo.jeebly.com/api/update-tracking", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -734,6 +733,7 @@ async function updateTrackingDirect(orderId, trackingNumber) {
     return { success: false, error: error.message };
   }
 }
+
 
 
 
