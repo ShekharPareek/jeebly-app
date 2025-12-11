@@ -717,7 +717,7 @@ app.post("/api/update-tracking", async (req, res) => {
 
 async function updateTrackingDirect(orderId, trackingNumber) {
   try {
-    const response = await fetch("https://demo.jeebly.com/api/update-tracking", {
+    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
