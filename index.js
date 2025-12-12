@@ -56,6 +56,7 @@ const lastSuccessfulShipments = {};
 // Webhook handler
 app.post('/api/webhooks/ordercreate', async (req, res) => {
   const session = res.locals.shopify.session;
+  
   if (!verifyShopifyWebhook(req)) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
@@ -111,7 +112,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 //   return;
 // }
 
-// const order = new shopify.api.rest.Order({ session });
+// const order = new shopify.api.rest.Order({ session })s;
 // order.id = payload.id;
 // order.tags = (payload.tags || '') + ',created_by_webhook';
 
