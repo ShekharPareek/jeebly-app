@@ -633,7 +633,7 @@ let payload = null;
 // MOVED from bottom: Update tracking using REST API (Open endpoint, requires 'shop' for offline session)
 app.post("/api/update-tracking", async (req, res) => {
     try {
-        let session = res.locals.shopify.session;
+      let session = res.locals.shopify?.session;
         const { orderId, trackingNumber, shop } = req.body;
 
         // If no active session (external call), try to load offline session using 'shop'
