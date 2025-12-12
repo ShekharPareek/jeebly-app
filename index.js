@@ -577,6 +577,7 @@
 
 
 
+
 import crypto from 'crypto';
 import express from "express";
 import serveStatic from "serve-static";
@@ -633,6 +634,18 @@ let payload = null;
 app.post("/api/update-tracking", async (req, res) => {
     try {
         let session = res.locals.shopify.session;
+        const { orderId, trackingNumber, shop } = req.body;
+
+        // If no active session (external call), try to load offline session using 'shop'
+        if (!session && shop) {
+            console.log(`Loading offline session for shop: ${shop}`);
+            const sessionId = shopify.api.session.getOfflineId(shop);
+            session = await shopify.config.sessionStorage.loadSession(sessionId);
+        }
+
+        if (!session) {
+            return res.status(401).json({ success: false, error: "Unauthorized: No session found. Please provide 'shop' domain in body if calling externally." });
+        }
 
         // OPTIMIZATION: Use shared logic
         const result = await updateOrderTracking(session, orderId, trackingNumber);
@@ -652,16 +665,24 @@ const lastSuccessfulShipments = {};
 
 // Webhook handler
 app.post('/api/webhooks/ordercreate', async (req, res) => {
-    
+    // Webhooks from Shopify identify the shop in the header
+    const shop = req.headers['x-shopify-shop-domain'];
 
     if (!verifyShopifyWebhook(req)) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-
     try {
-      let session = res.locals.shopify.session;
         const payload = req.body;
+
+        // Load offline session for tracking updates
+        let session = undefined;
+        if (shop) {
+            const sessionId = shopify.api.session.getOfflineId(shop);
+            session = await shopify.config.sessionStorage.loadSession(sessionId);
+        } else {
+            console.warn("No shop header found in webhook. Tracking updates may fail.");
+        }
 
         // res.status(200).json({ success: true, message: 'Webhook received' });
         const orderId = payload?.id;
@@ -1077,8 +1098,7 @@ app.get("/api/orders/all", async (_req, res) => {
     }
 });
 
-
-
+// OPTIMIZATION: Shared function for tracking updates
 async function updateOrderTracking(session, orderId, trackingNumber) {
     try {
         if (!orderId || !trackingNumber) {
@@ -1188,8 +1208,3 @@ app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
-
-
-
-
