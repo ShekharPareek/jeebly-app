@@ -55,7 +55,7 @@ const lastSuccessfulShipments = {};
 
 // Webhook handler
 app.post('/api/webhooks/ordercreate', async (req, res) => {
-  const session = res.locals.shopify.session;
+
 
   if (!verifyShopifyWebhook(req)) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -79,7 +79,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
     console.log(`Webhook received for order ID: ${orderId}, Timestamp: ${new Date().toISOString()}`);
     console.log("Extracted Shop ID:", extractedShopId);
     console.log("Webhook received:", payload);
- console.log("session for Tracking:",session);
+    // console.log("session for Tracking:",payload.session);
 
     console.log("Webhook payload:", payload);
 
