@@ -631,35 +631,35 @@ function verifyShopifyWebhook(req) {
 let payload = null;
 
 // MOVED from bottom: Update tracking using REST API (Open endpoint, requires 'shop' for offline session)
-app.post("/api/update-tracking", async (req, res) => {
-    try {
-      let session = res.locals.shopify?.session;
-        const { orderId, trackingNumber, shop } = req.body;
+// app.post("/api/update-tracking", async (req, res) => {
+//     try {
+//       let session = res.locals.shopify?.session;
+//         const { orderId, trackingNumber, shop } = req.body;
 
-        // If no active session (external call), try to load offline session using 'shop'
-        if (!session && shop) {
-            console.log(`Loading offline session for shop: ${shop}`);
-            const sessionId = shopify.api.session.getOfflineId(shop);
-            session = await shopify.config.sessionStorage.loadSession(sessionId);
-        }
+//         // If no active session (external call), try to load offline session using 'shop'
+//         if (!session && shop) {
+//             console.log(`Loading offline session for shop: ${shop}`);
+//             const sessionId = shopify.api.session.getOfflineId(shop);
+//             session = await shopify.config.sessionStorage.loadSession(sessionId);
+//         }
 
-        if (!session) {
-            return res.status(401).json({ success: false, error: "Unauthorized: No session found. Please provide 'shop' domain in body if calling externally." });
-        }
+//         if (!session) {
+//             return res.status(401).json({ success: false, error: "Unauthorized: No session found. Please provide 'shop' domain in body if calling externally." });
+//         }
 
-        // OPTIMIZATION: Use shared logic
-        const result = await updateOrderTracking(session, orderId, trackingNumber);
+//         // OPTIMIZATION: Use shared logic
+//         const result = await updateOrderTracking(session, orderId, trackingNumber);
 
-        res.json(result);
+//         res.json(result);
 
-    } catch (error) {
-        console.error("Tracking update error:", error);
-        res.json({
-            success: false,
-            error: error.message,
-        });
-    }
-});
+//     } catch (error) {
+//         console.error("Tracking update error:", error);
+//         res.json({
+//             success: false,
+//             error: error.message,
+//         });
+//     }
+// });
 
 const lastSuccessfulShipments = {};
 
