@@ -306,9 +306,7 @@ async function processWebhookData(payload, extractedShopId) {
 
            
             // === Call backend tracking update ===
-            const result = await updateTrackingDirect(OrderId, trackingNumber);
-                console.log("Tracking update result:", result);
-                updateTrackingDirect(OrderId, trackingNumber);
+        s
             }
       
           else {
