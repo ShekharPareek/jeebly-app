@@ -55,6 +55,7 @@ const lastSuccessfulShipments = {};
 
 // Webhook handler
 app.post('/api/webhooks/ordercreate', async (req, res) => {
+  const session = res.locals.shopify.session;
   if (!verifyShopifyWebhook(req)) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
@@ -77,7 +78,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
     console.log(`Webhook received for order ID: ${orderId}, Timestamp: ${new Date().toISOString()}`);
     console.log("Extracted Shop ID:", extractedShopId);
     console.log("Webhook received:", payload);
-
+ console.log("session for Tracking:",session);
 
     console.log("Webhook payload:", payload);
 
@@ -117,8 +118,6 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 // await order.save({
 //   update: true
 // });
-
-
 
 
 async function processWebhookData(payload, extractedShopId) {
@@ -472,28 +471,6 @@ app.get("/api/orders/all", async (_req, res) => {
   }
 });
 
-
-// Update Tracking using Automation webhook Shipment create
-async function updateTrackingDirect(orderId, trackingNumber) {
-  try {
-    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: orderId,
-        trackingNumber: trackingNumber, // <-- use sh_s_reference_no
-      }),
-    });
-
-    const updateData = await updateResponse.json();
-    console.log("Update Tracking Response:", updateData);
-
-
-  } catch (error) {
-    console.error("updateTrackingDirect fetch error:", error);
-    return { success: false, error: error.message };
-  }
-}
 // tracking number update
 // tracking number update
 // UPDATE TRACKING USING REST API
@@ -651,6 +628,28 @@ app.post("/api/update-tracking", async (req, res) => {
     });
   }
 });
+ 
+// Update Tracking using Automation webhook Shipment create
+async function updateTrackingDirect(orderId, trackingNumber) {
+  try {
+    const response = await fetch("https://jeebly-app.vercel.app/api/update-tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: orderId,
+        trackingNumber: trackingNumber, // <-- use sh_s_reference_no
+      }),
+    });
+
+    const updateData = await updateResponse.json();
+    console.log("Update Tracking Response:", updateData);
+
+
+  } catch (error) {
+    console.error("updateTrackingDirect fetch error:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
