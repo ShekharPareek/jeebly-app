@@ -580,6 +580,7 @@
 
 
 
+
 import crypto from 'crypto';
 import express from "express";
 import serveStatic from "serve-static";
@@ -1066,7 +1067,11 @@ app.get("/api/orders/all", async (_req, res) => {
 // Update tracking using REST API
 app.post("/api/update-tracking", async (req, res) => {
     try {
-        const session = res.locals.shopify.session;
+        const session = res.locals.shopify?.session;
+        if (!session) {
+            return res.status(401).json({ success: false, error: "Unauthorized: No active Shopify session found." });
+        }
+
         const { orderId, trackingNumber } = req.body;
 
         // OPTIMIZATION: Use shared logic
@@ -1215,15 +1220,3 @@ app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
