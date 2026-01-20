@@ -644,6 +644,8 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 
     try {
         const payload = req.body;
+        const shippingTitle = payload?.shipping_lines?.[0]?.title;
+
 
         // Load offline session for tracking updates
         let session = undefined;
@@ -685,7 +687,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 
         // Process webhook data
         // OPTIMIZATION: Pass session to allow tracking updates
-        await processWebhookData(payload, extractedShopId, session);
+        await processWebhookData(payload, extractedShopId, session,shippingTitle);
 
         res.status(200).json({ success: true, message: 'Webhook received' });
 
@@ -711,7 +713,7 @@ app.post('/api/webhooks/ordercreate', async (req, res) => {
 // });
 
 
-async function processWebhookData(payload, extractedShopId, session) {
+async function processWebhookData(payload, extractedShopId, session,shippingTitle) {
     console.log("Processing webhook data:", JSON.stringify(payload, null, 2));
 
 
@@ -772,7 +774,7 @@ async function processWebhookData(payload, extractedShopId, session) {
     const pickupDate = getNextDayDate();
     const clientKey = extractedShopId;
     const OrderId = payload.id;
-    const Ship_type = payload.shipping_lines?.[0]?.title;
+    const Ship_type = shippingTitle;
 
     console.log("Extracted Data for Shipment:", {
         description,
